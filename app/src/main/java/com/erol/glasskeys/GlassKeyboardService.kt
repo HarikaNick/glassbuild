@@ -58,10 +58,12 @@ class GlassKeyboardService : InputMethodService() {
             }
             "enter" -> {
                 val info = currentInputEditorInfo
-                val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
-                val hasNoEnterAction = info?.imeOptions?.and(EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0
-                if (action != null && action != EditorInfo.IME_ACTION_NONE &&
-                    action != EditorInfo.IME_ACTION_UNSPECIFIED && !hasNoEnterAction) {
+                val options = info?.imeOptions ?: 0
+                val action = options and EditorInfo.IME_MASK_ACTION
+                val hasNoEnterAction = (options and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0
+                val isActionDefined = action != EditorInfo.IME_ACTION_NONE &&
+                    action != EditorInfo.IME_ACTION_UNSPECIFIED
+                if (isActionDefined && !hasNoEnterAction) {
                     ic.performEditorAction(action)
                 } else {
                     ic.commitText("\n", 1)
@@ -167,9 +169,12 @@ private class IOSKeyboardView(
         suggestions = if (prefix.isBlank()) {
             listOf("tamam","nasılsın","teşekkürler")
         } else {
-            val matches = dictionary.filter {
-                it.startsWith(prefix, ignoreCase = true) && !it.equals(prefix, ignoreCase = true)
-            }.distinct().take(2)
+            val matches = dictionary.asSequence()
+                .filter { it.startsWith(prefix, ignoreCase = true) }
+                .filterNot { it.equals(prefix, ignoreCase = true) }
+                .distinct()
+                .take(2)
+                .toList()
             (listOf(prefix) + matches).take(3)
         }
         invalidate()
@@ -279,7 +284,7 @@ private class IOSKeyboardView(
             row.forEachIndexed { index, raw ->
                 val w = available * weights[index] / total
                 val rect = RectF(x, y, x + w, y + rowHeight)
-                val special = raw in listOf("shift","delete","symbols","letters","globe","enter","space")
+                val special = raw in setOf("shift","delete","symbols","letters","globe","enter","space")
                 drawKey(canvas, rect, special, d, raw == pressedKey)
                 val label = when (raw) {
                     "shift" -> if (shift) "⇧" else "↑"
