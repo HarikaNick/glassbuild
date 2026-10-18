@@ -176,10 +176,10 @@ private class IOSKeyboardView(
             variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
             variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD ||
             variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
-        val caps = inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT &&
-            (inputType and InputType.TYPE_TEXT_FLAG_CAP_SENTENCES != 0 ||
-             inputType and InputType.TYPE_TEXT_FLAG_CAP_WORDS != 0 ||
-             inputType and InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS != 0)
+        val caps = (inputType and InputType.TYPE_MASK_CLASS) == InputType.TYPE_CLASS_TEXT &&
+            ((inputType and InputType.TYPE_TEXT_FLAG_CAP_SENTENCES) != 0 ||
+             (inputType and InputType.TYPE_TEXT_FLAG_CAP_WORDS) != 0 ||
+             (inputType and InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS) != 0)
         if (caps && !passwordInput) shift = true
         if (passwordInput) suggestions = emptyList()
         invalidate()
