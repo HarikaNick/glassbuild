@@ -266,8 +266,8 @@ private class IOSKeyboardView(
         // Full keyboard silhouette: smoked translucent glass with rounded lower corners.
         // Keep the canvas clear outside this shape so the IME window can reveal what is behind it.
         val panel = RectF(1f * d, 1f * d, width - 1f * d, height - 1f * d)
-        val panelRadius = 34f * d
-        val panelAlpha = (if (dark) 118f else 132f) * (opacity / 92f)
+        val panelRadius = 30f * d
+        val panelAlpha = (if (dark) 102f else 116f) * (opacity / 92f)
         backgroundPaint.shader = LinearGradient(0f, panel.top, 0f, panel.bottom,
             Color.argb(panelAlpha.toInt().coerceIn(65, 175), if (dark) 49 else 231,
                 if (dark) 49 else 234, if (dark) 56 else 241),
@@ -278,11 +278,11 @@ private class IOSKeyboardView(
 
         // Glass rim: a low-contrast outer edge and a broad soft reflection across the top.
         edgePaint.strokeWidth = 1f * d
-        edgePaint.color = Color.argb(if (dark) 92 else 125, 245, 247, 255)
+        edgePaint.color = Color.argb(if (dark) 64 else 96, 245, 247, 255)
         canvas.drawRoundRect(RectF(panel.left + 0.5f * d, panel.top + 0.5f * d,
             panel.right - 0.5f * d, panel.bottom - 0.5f * d), panelRadius, panelRadius, edgePaint)
         highlightPaint.shader = LinearGradient(0f, panel.top, 0f, panel.top + 72f * d,
-            Color.argb(if (dark) 38 else 68, 255, 255, 255),
+            Color.argb(if (dark) 27 else 48, 255, 255, 255),
             Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP)
         canvas.drawRoundRect(panel, panelRadius, panelRadius, highlightPaint)
         highlightPaint.shader = null
@@ -491,7 +491,7 @@ private class IOSKeyboardView(
     ) {
         val radius = roundness * d
         // Keycaps are noticeably more transparent than conventional keyboard buttons.
-        val alpha = ((if (dark) 108f else 145f) * (opacity / 92f)).toInt().coerceIn(65, 185)
+        val alpha = ((if (dark) 92f else 126f) * (opacity / 92f)).toInt().coerceIn(55, 165)
         val keyRect = if (pressed) RectF(rect.left, rect.top + 1.5f * d, rect.right, rect.bottom + 1.5f * d) else rect
 
         val accentKey = key == "globe" || key == "shift" && shift
@@ -535,20 +535,20 @@ private class IOSKeyboardView(
         keyPaint.shader = null
 
         edgePaint.strokeWidth = max(0.65f * d, 0.8f)
-        edgePaint.color = if (dark) Color.argb(if (pressed) 95 else 76, 235, 240, 249)
+        edgePaint.color = if (dark) Color.argb(if (pressed) 82 else 52, 235, 240, 249)
             else Color.argb(if (pressed) 155 else 120, 255, 255, 255)
         canvas.drawRoundRect(keyRect, radius, radius, edgePaint)
 
         // Thin inner top reflection: subtle enough to read as material, not an outline.
         highlightPaint.shader = LinearGradient(keyRect.left, keyRect.top, keyRect.left, keyRect.top + 9f * d,
-            Color.argb(if (dark) 32 else 75, 255, 255, 255),
+            Color.argb(if (dark) 24 else 54, 255, 255, 255),
             Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP)
         canvas.drawRoundRect(RectF(keyRect.left + 2f * d, keyRect.top + 1f * d,
             keyRect.right - 2f * d, keyRect.top + 9f * d), radius, radius, highlightPaint)
         highlightPaint.shader = null
 
         // Soft lower edge adds separation against the keyboard base.
-        highlightPaint.color = Color.argb(if (dark) 24 else 34, 0, 0, 0)
+        highlightPaint.color = Color.argb(if (dark) 17 else 25, 0, 0, 0)
         canvas.drawLine(keyRect.left + radius, keyRect.bottom - 1f * d,
             keyRect.right - radius, keyRect.bottom - 1f * d, highlightPaint)
     }
