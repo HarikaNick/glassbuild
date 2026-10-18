@@ -27,7 +27,7 @@ class GlassKeyboardService : InputMethodService() {
 
     override fun onCreateInputView(): View {
         // Let the keyboard view draw its own rounded glass silhouette.
-        window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        window?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         keyboard = IOSKeyboardView(this) { handleKey(it) }
         return keyboard!!
     }
