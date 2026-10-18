@@ -392,9 +392,14 @@ private class IOSKeyboardView(
                     suggestion != null -> onKey(suggestion.second)
                     key != null -> {
                         val raw = key.second
-                        val output = if (shift && raw.length == 1 && raw[0].isLetter()) raw.uppercase() else raw
-                        onKey(output)
-                        if (shift && raw.length == 1 && raw[0].isLetter()) shift = false
+                        // A short tap switches input methods; a long press opens emoji.
+                        if (raw == "globe" && event.eventTime - event.downTime >= 450L) {
+                            onKey("emoji")
+                        } else {
+                            val output = if (shift && raw.length == 1 && raw[0].isLetter()) raw.uppercase() else raw
+                            onKey(output)
+                            if (shift && raw.length == 1 && raw[0].isLetter()) shift = false
+                        }
                     }
                 }
                 pressedKey = null
