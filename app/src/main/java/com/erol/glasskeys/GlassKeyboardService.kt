@@ -337,10 +337,12 @@ private class IOSKeyboardView(
             return
         }
 
-        val rows = if (symbols) symbolRows else letters
-        // Proportions are tuned against the supplied iOS 26 keyboard reference.
-        val rowHeight = ((height - rowTop - 10f * d - 3f * 4f * d) / 4f)
-            .coerceIn(36f * d, 44f * d)
+        val baseRows = if (symbols) symbolRows else letters
+        val numberRow = listOf("1","2","3","4","5","6","7","8","9","0")
+        val rows = if (!symbols && prefs.getBoolean("number_row", false)) listOf(numberRow) + baseRows else baseRows
+        // Adapt key height to the optional number row and available screen height.
+        val rowHeight = ((height - rowTop - 10f * d - (rows.size - 1) * 4f * d) / rows.size)
+            .coerceIn(30f * d, 44f * d)
         val rowGap = 4f * d
         val keyGap = 3f * d
         rows.forEachIndexed { rowIndex, row ->
