@@ -9,6 +9,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.os.VibrationEffect
@@ -25,6 +26,8 @@ class GlassKeyboardService : InputMethodService() {
     private var lastSpaceAt = 0L
 
     override fun onCreateInputView(): View {
+        // Let the keyboard view draw its own rounded glass silhouette.
+        window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         keyboard = IOSKeyboardView(this) { handleKey(it) }
         return keyboard!!
     }
@@ -257,20 +260,30 @@ private class IOSKeyboardView(
         super.onDraw(canvas)
         readAppearance()
         val d = resources.displayMetrics.density
-        val bgTop = if (dark) Color.rgb(48, 50, 57) else Color.rgb(229, 232, 238)
-        val bgBottom = if (dark) Color.rgb(27, 28, 33) else Color.rgb(194, 200, 210)
         val foreground = if (dark) Color.rgb(250, 250, 252) else Color.rgb(30, 32, 38)
 
-        backgroundPaint.shader = LinearGradient(0f, 0f, 0f, height.toFloat(),
-            bgTop, bgBottom, Shader.TileMode.CLAMP)
-        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), backgroundPaint)
+        // Full keyboard silhouette: smoked translucent glass with rounded lower corners.
+        // Keep the canvas clear outside this shape so the IME window can reveal what is behind it.
+        val panel = RectF(1f * d, 1f * d, width - 1f * d, height - 1f * d)
+        val panelRadius = 34f * d
+        val panelAlpha = (if (dark) 118f else 132f) * (opacity / 92f)
+        backgroundPaint.shader = LinearGradient(0f, panel.top, 0f, panel.bottom,
+            Color.argb(panelAlpha.toInt().coerceIn(65, 175), if (dark) 49 else 231,
+                if (dark) 49 else 234, if (dark) 56 else 241),
+            Color.argb((panelAlpha * 0.82f).toInt().coerceIn(55, 160), if (dark) 24 else 196,
+                if (dark) 25 else 202, if (dark) 31 else 213), Shader.TileMode.CLAMP)
+        canvas.drawRoundRect(panel, panelRadius, panelRadius, backgroundPaint)
         backgroundPaint.shader = null
 
-        // A restrained upper sheen and edge vignette give the panel depth without a fake neon glow.
-        highlightPaint.shader = LinearGradient(0f, 0f, 0f, 62f * d,
-            Color.argb(if (dark) 24 else 45, 255, 255, 255),
+        // Glass rim: a low-contrast outer edge and a broad soft reflection across the top.
+        edgePaint.strokeWidth = 1f * d
+        edgePaint.color = Color.argb(if (dark) 92 else 125, 245, 247, 255)
+        canvas.drawRoundRect(RectF(panel.left + 0.5f * d, panel.top + 0.5f * d,
+            panel.right - 0.5f * d, panel.bottom - 0.5f * d), panelRadius, panelRadius, edgePaint)
+        highlightPaint.shader = LinearGradient(0f, panel.top, 0f, panel.top + 72f * d,
+            Color.argb(if (dark) 38 else 68, 255, 255, 255),
             Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP)
-        canvas.drawRect(0f, 0f, width.toFloat(), 62f * d, highlightPaint)
+        canvas.drawRoundRect(panel, panelRadius, panelRadius, highlightPaint)
         highlightPaint.shader = null
 
         keyRects.clear()
@@ -433,7 +446,8 @@ private class IOSKeyboardView(
         pressed: Boolean = false, key: String = ""
     ) {
         val radius = roundness * d
-        val alpha = (opacity * 2.45f).toInt().coerceIn(95, 245)
+        // Keycaps are noticeably more transparent than conventional keyboard buttons.
+        val alpha = ((if (dark) 108f else 145f) * (opacity / 92f)).toInt().coerceIn(65, 185)
         val keyRect = if (pressed) RectF(rect.left, rect.top + 1.5f * d, rect.right, rect.bottom + 1.5f * d) else rect
 
         val accentKey = key == "globe" || key == "shift" && shift
@@ -441,8 +455,8 @@ private class IOSKeyboardView(
         val top = when {
             dark && accentKey -> Color.rgb(45, 104, 171)
             dark && actionKey -> Color.rgb(91, 97, 109)
-            dark && special -> Color.rgb(67, 70, 78)
-            dark -> Color.rgb(57, 60, 68)
+            dark && special -> Color.rgb(86, 88, 96)
+            dark -> Color.rgb(76, 79, 87)
             accentKey -> Color.rgb(210, 228, 250)
             actionKey -> Color.rgb(218, 224, 233)
             special -> Color.rgb(204, 210, 220)
@@ -451,8 +465,8 @@ private class IOSKeyboardView(
         val bottom = when {
             dark && accentKey -> Color.rgb(26, 73, 128)
             dark && actionKey -> Color.rgb(63, 67, 77)
-            dark && special -> Color.rgb(49, 52, 60)
-            dark -> Color.rgb(40, 43, 50)
+            dark && special -> Color.rgb(57, 59, 67)
+            dark -> Color.rgb(48, 50, 58)
             accentKey -> Color.rgb(180, 207, 239)
             actionKey -> Color.rgb(187, 196, 210)
             special -> Color.rgb(181, 189, 202)
