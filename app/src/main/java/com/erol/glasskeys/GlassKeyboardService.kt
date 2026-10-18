@@ -325,8 +325,10 @@ private class IOSKeyboardView(
         }
 
         val rows = if (symbols) symbolRows else letters
-        val rowHeight = 42f * d
-        val rowGap = 5f * d
+        // Proportions are tuned against the supplied iOS 26 keyboard reference.
+        val rowHeight = (height - rowTop - 10f * d - 3f * 4f * d) / 4f
+            .coerceIn(36f * d, 44f * d)
+        val rowGap = 4f * d
         val keyGap = 3f * d
         rows.forEachIndexed { rowIndex, row ->
             val y = rowTop + rowIndex * (rowHeight + rowGap)
@@ -338,7 +340,7 @@ private class IOSKeyboardView(
                 val w = available * weights[index] / total
                 val rect = RectF(x, y, x + w, y + rowHeight)
                 val special = raw in setOf("shift","delete","symbols","letters","globe","enter","space")
-                drawKey(canvas, rect, special, d, raw == pressedKey)
+                drawKey(canvas, rect, special, d, raw == pressedKey, raw)
                 val label = when (raw) {
                     "shift" -> if (shift) "⇧" else "↑"
                     "delete" -> "⌫"
@@ -392,20 +394,35 @@ private class IOSKeyboardView(
         canvas.drawText(text, rect.centerX(), baseline, textPaint)
     }
 
-    private fun drawKey(canvas: Canvas, rect: RectF, special: Boolean, d: Float, pressed: Boolean = false) {
+    private fun drawKey(
+        canvas: Canvas, rect: RectF, special: Boolean, d: Float,
+        pressed: Boolean = false, key: String = ""
+    ) {
         val radius = roundness * d
-        val alpha = (opacity * 2.25f).toInt().coerceIn(80, 225)
+        val alpha = (opacity * 2.45f).toInt().coerceIn(95, 245)
         val keyRect = if (pressed) RectF(rect.left, rect.top + 1.5f * d, rect.right, rect.bottom + 1.5f * d) else rect
 
-        val top = if (dark) {
-            if (special) Color.rgb(88, 90, 98) else Color.rgb(75, 77, 84)
-        } else {
-            if (special) Color.rgb(165, 170, 180) else Color.rgb(255, 255, 255)
+        val accentKey = key == "globe" || key == "shift" && shift
+        val actionKey = key == "enter"
+        val top = when {
+            dark && accentKey -> Color.rgb(45, 104, 171)
+            dark && actionKey -> Color.rgb(91, 97, 109)
+            dark && special -> Color.rgb(67, 70, 78)
+            dark -> Color.rgb(57, 60, 68)
+            accentKey -> Color.rgb(210, 228, 250)
+            actionKey -> Color.rgb(218, 224, 233)
+            special -> Color.rgb(204, 210, 220)
+            else -> Color.rgb(250, 251, 253)
         }
-        val bottom = if (dark) {
-            if (special) Color.rgb(58, 60, 67) else Color.rgb(47, 49, 56)
-        } else {
-            if (special) Color.rgb(142, 148, 159) else Color.rgb(232, 235, 241)
+        val bottom = when {
+            dark && accentKey -> Color.rgb(26, 73, 128)
+            dark && actionKey -> Color.rgb(63, 67, 77)
+            dark && special -> Color.rgb(49, 52, 60)
+            dark -> Color.rgb(40, 43, 50)
+            accentKey -> Color.rgb(180, 207, 239)
+            actionKey -> Color.rgb(187, 196, 210)
+            special -> Color.rgb(181, 189, 202)
+            else -> Color.rgb(225, 230, 238)
         }
 
         val keyTop = if (pressed) {
@@ -426,7 +443,8 @@ private class IOSKeyboardView(
         keyPaint.shader = null
 
         edgePaint.strokeWidth = max(0.65f * d, 0.8f)
-        edgePaint.color = Color.argb(if (dark) 58 else 90, 255, 255, 255)
+        edgePaint.color = if (dark) Color.argb(if (pressed) 95 else 76, 235, 240, 249)
+            else Color.argb(if (pressed) 155 else 120, 255, 255, 255)
         canvas.drawRoundRect(keyRect, radius, radius, edgePaint)
 
         // Thin inner top reflection: subtle enough to read as material, not an outline.
