@@ -163,7 +163,7 @@ private class IOSKeyboardView(
     private var emojiMode = false
     private var dark = true
     private var opacity = 92
-    private var roundness = 7
+    private var roundness = 8
 
     private var suggestions = listOf("tamam","nasılsın","teşekkürler")
 
@@ -317,8 +317,8 @@ private class IOSKeyboardView(
 
         val rows = if (symbols) symbolRows else letters
         val rowHeight = 42f * d
-        val rowGap = 7f * d
-        val keyGap = 4f * d
+        val rowGap = 5f * d
+        val keyGap = 3f * d
 
         rows.forEachIndexed { rowIndex, row ->
             val y = rowTop + rowIndex * (rowHeight + rowGap)
@@ -391,16 +391,16 @@ private class IOSKeyboardView(
         val alpha = (opacity * 2.25f).toInt().coerceIn(80, 225)
 
         val top = if (dark) {
-            if (special) Color.argb(alpha, 86, 88, 94)
-            else Color.argb(alpha, 72, 74, 80)
+            if (special) Color.argb(alpha, 91, 93, 100)
+            else Color.argb(alpha, 78, 80, 87)
         } else {
             if (special) Color.argb(alpha, 168, 172, 180)
             else Color.argb(alpha, 255, 255, 255)
         }
 
         val bottom = if (dark) {
-            if (special) Color.argb(alpha, 58, 60, 66)
-            else Color.argb(alpha, 47, 49, 54)
+            if (special) Color.argb(alpha, 65, 67, 74)
+            else Color.argb(alpha, 53, 55, 62)
         } else {
             if (special) Color.argb(alpha, 145, 149, 158)
             else Color.argb(alpha, 238, 239, 243)
@@ -418,10 +418,9 @@ private class IOSKeyboardView(
         keyPaint.clearShadowLayer()
         keyPaint.shader = null
 
-        borderPaint.strokeWidth = max(.7f * d, 1f)
-        borderPaint.color = Color.argb(
-            if (dark) 90 else 130, 255, 255, 255
-        )
+        borderPaint.strokeWidth = max(.55f * d, 0.8f)
+        borderPaint.color = if (dark) Color.argb(58, 255, 255, 255)
+                            else Color.argb(95, 255, 255, 255)
         canvas.drawRoundRect(rect, radius, radius, borderPaint)
 
         fill.color = Color.argb(
