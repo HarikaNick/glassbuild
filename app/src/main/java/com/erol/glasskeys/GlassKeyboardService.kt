@@ -155,7 +155,7 @@ private class IOSKeyboardView(
         "selam","naber","iyi","günaydın","sorun","istiyorum","yapabilir","gerekir",
         "güzelmiş","kesinlikle"
     )
-    private val emojiList = listOf("😀","😂","🥹","😍","🥰","😎","😭","❤️","👍","🙏","🔥","✨")
+    private val emojiList = listOf("😀","😃","😄","😁","😆","😅","😂","🤣","🥹","😊","😇","🙂","🙃","😉","😍","🥰","😘","😋","😎","🤩","🥳","😭","😢","😡","🤔","🤗","🤫","🤭","😴","🥱","🤯","😱","🤮","🤒","🤕","🤧","👍","👎","👏","🙌","🙏","💪","🫶","❤️","🧡","💛","💚","💙","💜","🖤","🤍","💔","🔥","✨","⭐","🌙","☀️","🌈","🎉","💯","🍀","🌹","🌸","🍕","🍔","☕","⚽","🎮","🚗","✈️","🐱","🐶")
 
     private var shift = false
     private var capsLock = false
@@ -238,7 +238,7 @@ private class IOSKeyboardView(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val d = resources.displayMetrics.density
         // Keep the keyboard close to the compact iOS footprint and avoid dead space below the last row.
-        val desired = (if (emojiMode) 170 else 235) * d
+        val desired = (if (emojiMode) 310 else 235) * d
         val h = resolveSize(desired.toInt(), heightMeasureSpec)
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), h)
     }
@@ -315,9 +315,9 @@ private class IOSKeyboardView(
 
         val rowTop = if (emojiMode) 8f * d else if (passwordInput) 5f * d else 37f * d
         if (emojiMode) {
-            val columns = 6
+            val columns = 8
             val cellW = (width - margin * 2) / columns
-            val cellH = 42f * d
+            val cellH = 31f * d
             emojiList.forEachIndexed { i, emoji ->
                 val rect = RectF(margin + (i % columns) * cellW,
                     rowTop + (i / columns) * cellH,
@@ -413,6 +413,22 @@ private class IOSKeyboardView(
         }
     }
 
+
+    private fun alternateCharacters(letter: String): List<String> = when (letter) {
+        "a" -> listOf("á", "à", "â", "ä", "æ", "å")
+        "c" -> listOf("ç", "ć", "č")
+        "e" -> listOf("é", "è", "ê", "ë")
+        "g" -> listOf("ğ")
+        "i" -> listOf("î", "ï", "í", "ì")
+        "ı" -> listOf("i", "î", "ï")
+        "n" -> listOf("ñ", "ń")
+        "o" -> listOf("ö", "ó", "ô", "ò", "õ")
+        "s" -> listOf("ş", "ś", "š")
+        "u" -> listOf("ü", "ú", "û", "ù")
+        "y" -> listOf("ý", "ÿ")
+        "z" -> listOf("ž", "ź")
+        else -> emptyList()
+    }
 
     private fun enterLabel(): String {
         val service = context as? InputMethodService
@@ -525,9 +541,18 @@ private class IOSKeyboardView(
                     suggestion != null -> onKey(suggestion.second)
                     key != null -> {
                         val raw = key.second
-                        // A short tap switches input methods; a long press opens emoji.
-                        if (raw == "globe" && event.eventTime - event.downTime >= 450L) {
+                        // Long-press letters to type an alternate character; globe opens emoji.
+                        val held = event.eventTime - event.downTime >= 450L
+                        if (raw == "globe" && held) {
                             onKey("emoji")
+                        } else if (held && raw.length == 1 && raw[0].isLetter()) {
+                            val alternatives = alternateCharacters(raw.lowercase())
+                            if (alternatives.isNotEmpty()) {
+                                val chosen = alternatives.first()
+                                onKey(if (shift) chosen.uppercase() else chosen)
+                            } else {
+                                onKey(if (shift) raw.uppercase() else raw)
+                            }
                         } else {
                             val output = if (shift && raw.length == 1 && raw[0].isLetter()) raw.uppercase() else raw
                             onKey(output)
