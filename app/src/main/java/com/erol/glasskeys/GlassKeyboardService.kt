@@ -162,8 +162,8 @@ private class IOSKeyboardView(
     private var symbols = false
     private var emojiMode = false
     private var dark = true
-    private var opacity = 68
-    private var roundness = 10
+    private var opacity = 92
+    private var roundness = 7
 
     private var suggestions = listOf("tamam","nasılsın","teşekkürler")
 
@@ -244,10 +244,10 @@ private class IOSKeyboardView(
         readAppearance()
 
         val d = resources.displayMetrics.density
-        val bg = if (dark) Color.rgb(39, 40, 45)
-                 else Color.rgb(211, 216, 225)
-        val fg = if (dark) Color.WHITE
-                 else Color.rgb(35, 37, 43)
+        val bg = if (dark) Color.rgb(35, 36, 40)
+                 else Color.rgb(209, 213, 219)
+        val fg = if (dark) Color.rgb(247, 247, 249)
+                 else Color.rgb(25, 26, 30)
 
         canvas.drawColor(bg)
 
@@ -261,9 +261,9 @@ private class IOSKeyboardView(
         suggestionRects.clear()
         emojiRects.clear()
 
-        val margin = 5f * d
-        val suggestionTop = 4f * d
-        val suggestionHeight = 30f * d
+        val margin = 4f * d
+        val suggestionTop = 2f * d
+        val suggestionHeight = 32f * d
 
         if (!emojiMode) {
             val cellWidth = (width - margin * 2) / 3f
@@ -277,12 +277,13 @@ private class IOSKeyboardView(
                 )
                 textPaint.color = fg
                 textPaint.textSize = 14f * d
+                textPaint.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 drawCentered(canvas, word, rect)
                 suggestionRects.add(rect to "suggest:$word")
             }
         }
 
-        val rowTop = if (emojiMode) 8f * d else 39f * d
+        val rowTop = if (emojiMode) 8f * d else 37f * d
 
         if (emojiMode) {
             val columns = 6
@@ -366,9 +367,11 @@ private class IOSKeyboardView(
     }
 
     private fun keyWeight(key: String): Float = when (key) {
-        "space" -> 4.5f
-        "shift","delete","symbols","letters","enter" -> 1.5f
-        "globe" -> 1.15f
+        "space" -> 4.7f
+        "shift","delete" -> 1.55f
+        "symbols","letters" -> 1.65f
+        "enter" -> 1.75f
+        "globe" -> 1.05f
         else -> 1f
     }
 
@@ -388,19 +391,19 @@ private class IOSKeyboardView(
         val alpha = (opacity * 2.25f).toInt().coerceIn(80, 225)
 
         val top = if (dark) {
-            if (special) Color.argb(alpha, 90, 94, 105)
-            else Color.argb(alpha, 76, 79, 90)
+            if (special) Color.argb(alpha, 86, 88, 94)
+            else Color.argb(alpha, 72, 74, 80)
         } else {
-            if (special) Color.argb(alpha, 171, 178, 191)
-            else Color.argb(alpha, 250, 251, 255)
+            if (special) Color.argb(alpha, 168, 172, 180)
+            else Color.argb(alpha, 255, 255, 255)
         }
 
         val bottom = if (dark) {
-            if (special) Color.argb(alpha, 66, 69, 79)
-            else Color.argb(alpha, 48, 50, 59)
+            if (special) Color.argb(alpha, 58, 60, 66)
+            else Color.argb(alpha, 47, 49, 54)
         } else {
-            if (special) Color.argb(alpha, 145, 152, 165)
-            else Color.argb(alpha, 225, 229, 237)
+            if (special) Color.argb(alpha, 145, 149, 158)
+            else Color.argb(alpha, 238, 239, 243)
         }
 
         keyPaint.shader = LinearGradient(
