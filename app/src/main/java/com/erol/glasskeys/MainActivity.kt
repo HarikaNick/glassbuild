@@ -102,6 +102,12 @@ class MainActivity : Activity() {
             isChecked = prefs.getBoolean("vibration", true)
             setOnCheckedChangeListener { _, checked -> prefs.edit().putBoolean("vibration", checked).apply() }
         }, LinearLayout.LayoutParams(-1, dp(52)))
+        root.addView(Switch(this).apply {
+            text = "Harflerin üstünde sayı satırı"
+            setTextColor(ink)
+            isChecked = prefs.getBoolean("number_row", false)
+            setOnCheckedChangeListener { _, checked -> prefs.edit().putBoolean("number_row", checked).apply() }
+        }, LinearLayout.LayoutParams(-1, dp(52)))
         section("KURULUM")
         root.addView(button("Klavyeyi etkinleştir") {
             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
