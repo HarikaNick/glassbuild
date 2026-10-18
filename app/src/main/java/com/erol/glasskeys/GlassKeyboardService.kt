@@ -234,7 +234,8 @@ private class IOSKeyboardView(
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val d = resources.displayMetrics.density
-        val desired = (if (emojiMode) 292 else 270) * d
+        // Keep the keyboard close to the compact iOS footprint and avoid dead space below the last row.
+        val desired = (if (emojiMode) 170 else 235) * d
         val h = resolveSize(desired.toInt(), heightMeasureSpec)
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), h)
     }
