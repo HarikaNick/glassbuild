@@ -69,7 +69,7 @@ class GlassKeyboardService : InputMethodService() {
                 if (action != null &&
                     action != EditorInfo.IME_ACTION_NONE &&
                     action != EditorInfo.IME_ACTION_UNSPECIFIED &&
-                    action != EditorInfo.IME_ACTION_NO_ENTER_ACTION
+                    action != EditorInfo.IME_FLAG_NO_ENTER_ACTION
                 ) {
                     ic.performEditorAction(action)
                 } else {
