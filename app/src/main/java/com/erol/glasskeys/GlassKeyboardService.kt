@@ -390,8 +390,7 @@ private class IOSKeyboardView(
         drawCentered(canvas, "☻", emojiButton)
         keyRects.add(emojiButton to "emoji")
         val micButton = RectF(width - 43f * d, utilityY - 15f * d, width - 10f * d, utilityY + 13f * d)
-        textPaint.textSize = 23f * d
-        drawCentered(canvas, "♩", micButton)
+        drawMicrophone(canvas, micButton.centerX(), micButton.centerY(), d, foreground)
         keyRects.add(micButton to "voice")
 
         // iOS-style key preview bubble: draw it above the pressed character.
@@ -466,6 +465,19 @@ private class IOSKeyboardView(
         "enter" -> 1.75f
         "globe" -> 1.05f
         else -> 1f
+    }
+
+    private fun drawMicrophone(canvas: Canvas, cx: Float, cy: Float, d: Float, color: Int) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.FILL }
+        val capsule = RectF(cx - 4.2f * d, cy - 10f * d, cx + 4.2f * d, cy + 4f * d)
+        canvas.drawRoundRect(capsule, 4.2f * d, 4.2f * d, p)
+        p.style = Paint.Style.STROKE
+        p.strokeWidth = 1.8f * d
+        p.strokeCap = Paint.Cap.ROUND
+        val cradle = RectF(cx - 8f * d, cy - 5f * d, cx + 8f * d, cy + 9f * d)
+        canvas.drawArc(cradle, 0f, 180f, false, p)
+        canvas.drawLine(cx, cy + 9f * d, cx, cy + 13f * d, p)
+        canvas.drawLine(cx - 5f * d, cy + 13f * d, cx + 5f * d, cy + 13f * d, p)
     }
 
     private fun drawCentered(canvas: Canvas, text: String, rect: RectF) {
