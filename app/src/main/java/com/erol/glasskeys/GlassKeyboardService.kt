@@ -98,6 +98,7 @@ class GlassKeyboardService : InputMethodService() {
             "symbols", "letters" -> keyboard?.toggleSymbols()
             "globe" -> try { switchToNextInputMethod(false) } catch (_: Exception) {}
             "emoji" -> keyboard?.toggleEmoji()
+            "voice" -> { /* Voice recognition requires a separate permission and result flow. */ }
             else -> ic.commitText(key, 1)
         }
         keyboard?.refreshSuggestions()
@@ -238,7 +239,7 @@ private class IOSKeyboardView(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val d = resources.displayMetrics.density
         // Keep the keyboard close to the compact iOS footprint and avoid dead space below the last row.
-        val desired = (if (emojiMode) 310 else 235) * d
+        val desired = (if (emojiMode) 310 else 270) * d
         val h = resolveSize(desired.toInt(), heightMeasureSpec)
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), h)
     }
@@ -340,8 +341,9 @@ private class IOSKeyboardView(
         val baseRows = if (symbols) symbolRows else letters
         val numberRow = listOf("1","2","3","4","5","6","7","8","9","0")
         val rows = if (!symbols && prefs.getBoolean("number_row", false)) listOf(numberRow) + baseRows else baseRows
-        // Adapt key height to the optional number row and available screen height.
-        val rowHeight = ((height - rowTop - 10f * d - (rows.size - 1) * 4f * d) / rows.size)
+        // Reserve a separate utility strip below the key rows, as in the reference keyboard.
+        val utilityStrip = 34f * d
+        val rowHeight = ((height - rowTop - utilityStrip - 10f * d - (rows.size - 1) * 4f * d) / rows.size)
             .coerceIn(30f * d, 44f * d)
         val rowGap = 4f * d
         val keyGap = 3f * d
@@ -379,6 +381,18 @@ private class IOSKeyboardView(
                 x += w + keyGap
             }
         }
+
+        // Bottom utility strip: standalone emoji and microphone controls outside the key row.
+        val utilityY = height - 30f * d
+        val emojiButton = RectF(10f * d, utilityY - 15f * d, 43f * d, utilityY + 13f * d)
+        textPaint.color = foreground
+        textPaint.textSize = 24f * d
+        drawCentered(canvas, "☻", emojiButton)
+        keyRects.add(emojiButton to "emoji")
+        val micButton = RectF(width - 43f * d, utilityY - 15f * d, width - 10f * d, utilityY + 13f * d)
+        textPaint.textSize = 23f * d
+        drawCentered(canvas, "♩", micButton)
+        keyRects.add(micButton to "voice")
 
         // iOS-style key preview bubble: draw it above the pressed character.
         val pressed = pressedKey
