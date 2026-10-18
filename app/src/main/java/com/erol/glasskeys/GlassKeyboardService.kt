@@ -364,6 +364,40 @@ private class IOSKeyboardView(
                 x += w + keyGap
             }
         }
+
+        // iOS-style key preview bubble: draw it above the pressed character.
+        val pressed = pressedKey
+        if (pressed != null && pressed.length == 1 && (pressed[0].isLetterOrDigit() || pressed in listOf(",", ".", "?", "!", "'", "-"))) {
+            val target = keyRects.firstOrNull { it.second == pressed }?.first
+            if (target != null) {
+                val popupWidth = max(target.width() + 12f * d, 42f * d)
+                val popupHeight = 48f * d
+                val popupBottom = target.top - 3f * d
+                val popupTop = popupBottom - popupHeight
+                val popup = RectF(target.centerX() - popupWidth / 2f, popupTop,
+                    target.centerX() + popupWidth / 2f, popupBottom)
+                val clamped = popup.apply {
+                    if (left < 2f * d) offset(2f * d - left, 0f)
+                    if (right > width - 2f * d) offset(width - 2f * d - right, 0f)
+                }
+                keyPaint.shader = LinearGradient(clamped.left, clamped.top, clamped.left, clamped.bottom,
+                    if (dark) Color.rgb(104, 108, 118) else Color.rgb(255, 255, 255),
+                    if (dark) Color.rgb(64, 68, 77) else Color.rgb(220, 226, 235),
+                    Shader.TileMode.CLAMP)
+                keyPaint.setShadowLayer(4f * d, 0f, 2f * d, Color.argb(65, 0, 0, 0))
+                canvas.drawRoundRect(clamped, 12f * d, 12f * d, keyPaint)
+                keyPaint.clearShadowLayer()
+                keyPaint.shader = null
+                edgePaint.strokeWidth = 1f * d
+                edgePaint.color = Color.argb(if (dark) 125 else 150, 255, 255, 255)
+                canvas.drawRoundRect(clamped, 12f * d, 12f * d, edgePaint)
+                textPaint.color = foreground
+                textPaint.textSize = 29f * d
+                textPaint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+                val popupLabel = if (shift) pressed.uppercase() else pressed
+                drawCentered(canvas, popupLabel, clamped)
+            }
+        }
     }
 
 
