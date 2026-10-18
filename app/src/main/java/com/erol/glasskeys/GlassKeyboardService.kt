@@ -16,18 +16,27 @@ import android.os.Vibrator
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.text.InputType
+import android.os.SystemClock
 import kotlin.math.max
 
 class GlassKeyboardService : InputMethodService() {
     private var keyboard: IOSKeyboardView? = null
+    private var lastSpaceAt = 0L
 
     override fun onCreateInputView(): View {
         keyboard = IOSKeyboardView(this) { handleKey(it) }
         return keyboard!!
     }
 
+    override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInput(info, restarting)
+        keyboard?.configureForInput(info)
+    }
+
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        keyboard?.configureForInput(info)
         keyboard?.refreshSuggestions()
     }
 
@@ -69,7 +78,19 @@ class GlassKeyboardService : InputMethodService() {
                     ic.commitText("\n", 1)
                 }
             }
-            "space" -> ic.commitText(" ", 1)
+            "space" -> {
+                val now = SystemClock.uptimeMillis()
+                val before = ic.getTextBeforeCursor(2, 0)?.toString().orEmpty()
+                if (now - lastSpaceAt in 1..650 && before.endsWith(" ") &&
+                    before.dropLast(1).lastOrNull()?.isLetterOrDigit() == true) {
+                    ic.deleteSurroundingText(1, 0)
+                    ic.commitText(". ", 1)
+                    lastSpaceAt = 0L
+                } else {
+                    ic.commitText(" ", 1)
+                    lastSpaceAt = now
+                }
+            }
             "shift" -> keyboard?.toggleShift()
             "symbols", "letters" -> keyboard?.toggleSymbols()
             "globe" -> try { switchToNextInputMethod(false) } catch (_: Exception) {}
@@ -134,6 +155,8 @@ private class IOSKeyboardView(
     private val emojiList = listOf("😀","😂","🥹","😍","🥰","😎","😭","❤️","👍","🙏","🔥","✨")
 
     private var shift = false
+    private var capsLock = false
+    private var passwordInput = false
     private var symbols = false
     private var emojiMode = false
     private var dark = true
@@ -146,8 +169,32 @@ private class IOSKeyboardView(
     private val suggestionRects = mutableListOf<Pair<RectF,String>>()
     private val emojiRects = mutableListOf<Pair<RectF,String>>()
 
+    fun configureForInput(info: EditorInfo?) {
+        val inputType = info?.inputType ?: InputType.TYPE_CLASS_TEXT
+        val variation = inputType and InputType.TYPE_MASK_VARIATION
+        passwordInput = variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+            variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+            variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD ||
+            variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        val caps = inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT &&
+            (inputType and InputType.TYPE_TEXT_FLAG_CAP_SENTENCES != 0 ||
+             inputType and InputType.TYPE_TEXT_FLAG_CAP_WORDS != 0 ||
+             inputType and InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS != 0)
+        if (caps && !passwordInput) shift = true
+        if (passwordInput) suggestions = emptyList()
+        invalidate()
+    }
+
     fun toggleShift() {
-        shift = !shift
+        if (shift && capsLock) {
+            capsLock = false
+            shift = false
+        } else if (shift) {
+            capsLock = true
+            shift = true
+        } else {
+            shift = true
+        }
         invalidate()
     }
     fun toggleSymbols() {
@@ -166,6 +213,11 @@ private class IOSKeyboardView(
                 ?.getTextBeforeCursor(80, 0)?.toString().orEmpty()
         } catch (_: Exception) { "" }
         val prefix = Regex("[\\p{L}\\p{M}]+$").find(before)?.value.orEmpty()
+        if (passwordInput) {
+            suggestions = emptyList()
+            invalidate()
+            return
+        }
         suggestions = if (prefix.isBlank()) {
             listOf("tamam","nasılsın","teşekkürler")
         } else {
@@ -227,7 +279,7 @@ private class IOSKeyboardView(
         val margin = 4f * d
         val suggestionTop = 1f * d
         val suggestionHeight = 33f * d
-        if (!emojiMode) {
+        if (!emojiMode && !passwordInput) {
             val cellWidth = (width - margin * 2) / 3f
             suggestions.take(3).forEachIndexed { i, word ->
                 val rect = RectF(margin + i * cellWidth, suggestionTop,
@@ -247,7 +299,7 @@ private class IOSKeyboardView(
             }
         }
 
-        val rowTop = if (emojiMode) 8f * d else 37f * d
+        val rowTop = if (emojiMode) 8f * d else if (passwordInput) 5f * d else 37f * d
         if (emojiMode) {
             val columns = 6
             val cellW = (width - margin * 2) / columns
@@ -293,7 +345,7 @@ private class IOSKeyboardView(
                     "letters" -> "ABC"
                     "globe" -> "🌐"
                     "space" -> "Türkçe"
-                    "enter" -> "↵"
+                    "enter" -> enterLabel()
                     else -> if (shift && raw.length == 1 && raw[0].isLetter()) raw.uppercase() else raw
                 }
                 textPaint.color = foreground
@@ -308,6 +360,20 @@ private class IOSKeyboardView(
                 keyRects.add(rect to raw)
                 x += w + keyGap
             }
+        }
+    }
+
+
+    private fun enterLabel(): String {
+        val service = context as? InputMethodService
+        val options = service?.currentInputEditorInfo?.imeOptions ?: 0
+        return when (options and EditorInfo.IME_MASK_ACTION) {
+            EditorInfo.IME_ACTION_GO -> "Git"
+            EditorInfo.IME_ACTION_SEARCH -> "Ara"
+            EditorInfo.IME_ACTION_SEND -> "Gönder"
+            EditorInfo.IME_ACTION_NEXT -> "İleri"
+            EditorInfo.IME_ACTION_DONE -> "Bitti"
+            else -> "↵"
         }
     }
 
@@ -398,7 +464,7 @@ private class IOSKeyboardView(
                         } else {
                             val output = if (shift && raw.length == 1 && raw[0].isLetter()) raw.uppercase() else raw
                             onKey(output)
-                            if (shift && raw.length == 1 && raw[0].isLetter()) shift = false
+                            if (shift && !capsLock && raw.length == 1 && raw[0].isLetter()) shift = false
                         }
                     }
                 }
