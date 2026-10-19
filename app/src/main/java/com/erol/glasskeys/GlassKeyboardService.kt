@@ -267,7 +267,7 @@ private class IOSKeyboardView(
         // Keep the canvas clear outside this shape so the IME window can reveal what is behind it.
         val panel = RectF(1f * d, 1f * d, width - 1f * d, height - 1f * d)
         val panelRadius = 30f * d
-        val panelAlpha = (if (dark) 102f else 116f) * (opacity / 92f)
+        val panelAlpha = (if (dark) 118f else 126f) * (opacity / 92f)
         backgroundPaint.shader = LinearGradient(0f, panel.top, 0f, panel.bottom,
             Color.argb(panelAlpha.toInt().coerceIn(65, 175), if (dark) 49 else 231,
                 if (dark) 49 else 234, if (dark) 56 else 241),
@@ -293,7 +293,7 @@ private class IOSKeyboardView(
 
         val margin = 4f * d
         val suggestionTop = 1f * d
-        val suggestionHeight = 33f * d
+        val suggestionHeight = 35f * d
         if (!emojiMode && !passwordInput) {
             val cellWidth = (width - margin * 2) / 3f
             suggestions.take(3).forEachIndexed { i, word ->
@@ -314,7 +314,7 @@ private class IOSKeyboardView(
             }
         }
 
-        val rowTop = if (emojiMode) 8f * d else if (passwordInput) 5f * d else 37f * d
+        val rowTop = if (emojiMode) 8f * d else if (passwordInput) 5f * d else 39f * d
         if (emojiMode) {
             val columns = 8
             val cellW = (width - margin * 2) / columns
@@ -343,10 +343,10 @@ private class IOSKeyboardView(
         val rows = if (!symbols && prefs.getBoolean("number_row", false)) listOf(numberRow) + baseRows else baseRows
         // Reserve a separate utility strip below the key rows, as in the reference keyboard.
         val utilityStrip = 34f * d
-        val rowHeight = ((height - rowTop - utilityStrip - 10f * d - (rows.size - 1) * 4f * d) / rows.size)
-            .coerceIn(30f * d, 44f * d)
+        val rowHeight = ((height - rowTop - utilityStrip - 8f * d - (rows.size - 1) * 4.5f * d) / rows.size)
+            .coerceIn(31f * d, 45f * d)
         val rowGap = 4f * d
-        val keyGap = 3f * d
+        val keyGap = 3.5f * d
         rows.forEachIndexed { rowIndex, row ->
             val y = rowTop + rowIndex * (rowHeight + rowGap)
             val weights = row.map { keyWeight(it) }
@@ -491,7 +491,7 @@ private class IOSKeyboardView(
     ) {
         val radius = roundness * d
         // Keycaps are noticeably more transparent than conventional keyboard buttons.
-        val alpha = ((if (dark) 92f else 126f) * (opacity / 92f)).toInt().coerceIn(55, 165)
+        val alpha = ((if (dark) 104f else 132f) * (opacity / 92f)).toInt().coerceIn(60, 175)
         val keyRect = if (pressed) RectF(rect.left, rect.top + 1.5f * d, rect.right, rect.bottom + 1.5f * d) else rect
 
         val accentKey = key == "globe" || key == "shift" && shift
@@ -535,8 +535,8 @@ private class IOSKeyboardView(
         keyPaint.shader = null
 
         edgePaint.strokeWidth = max(0.65f * d, 0.8f)
-        edgePaint.color = if (dark) Color.argb(if (pressed) 82 else 52, 235, 240, 249)
-            else Color.argb(if (pressed) 155 else 120, 255, 255, 255)
+        edgePaint.color = if (dark) Color.argb(if (pressed) 105 else 72, 235, 240, 249)
+            else Color.argb(if (pressed) 165 else 135, 255, 255, 255)
         canvas.drawRoundRect(keyRect, radius, radius, edgePaint)
 
         // Thin inner top reflection: subtle enough to read as material, not an outline.
