@@ -25,11 +25,35 @@ class GlassKeyboardService : InputMethodService() {
     private var keyboard: IOSKeyboardView? = null
     private var lastSpaceAt = 0L
 
+    private fun configureGlassWindow() {
+        val imeWindow = window?.window ?: return
+        imeWindow.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        // Android 12+ can blur the real app content behind a translucent IME window.
+        // Keep the Canvas-rendered glass as a graceful fallback on unsupported devices.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                imeWindow.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                imeWindow.attributes = imeWindow.attributes.apply {
+                    blurBehindRadius = (32f * resources.displayMetrics.density).toInt()
+                    dimAmount = 0.08f
+                }
+                imeWindow.setDimAmount(0.08f)
+            } catch (_: Exception) {
+                // Some OEM IME windows do not expose cross-window blur.
+            }
+        }
+    }
+
     override fun onCreateInputView(): View {
-        // Let the keyboard view draw its own rounded glass silhouette.
-        window?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        configureGlassWindow()
         keyboard = IOSKeyboardView(this) { handleKey(it) }
         return keyboard!!
+    }
+
+    override fun onWindowShown() {
+        super.onWindowShown()
+        configureGlassWindow()
     }
 
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
