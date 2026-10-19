@@ -30,6 +30,7 @@ class GlassKeyboardService : InputMethodService() {
     private var symbols = false
     private var emojiMode = false
     private var passwordInput = false
+    private var learningAllowed = true
     private var numericInput = false
     private var suggestionsRow: LinearLayout? = null
     private var lastSuggestions = emptyList<String>()
@@ -127,11 +128,19 @@ class GlassKeyboardService : InputMethodService() {
         val type = info?.inputType ?: InputType.TYPE_CLASS_TEXT
         val cls = type and InputType.TYPE_MASK_CLASS
         val variation = type and InputType.TYPE_MASK_VARIATION
-        passwordInput = (cls == InputType.TYPE_CLASS_TEXT && variation in listOf(
+        val isPassword = (cls == InputType.TYPE_CLASS_TEXT && variation in listOf(
             InputType.TYPE_TEXT_VARIATION_PASSWORD,
             InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
             InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
         )) || (cls == InputType.TYPE_CLASS_NUMBER && variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD)
+        val isPrivateText = cls == InputType.TYPE_CLASS_TEXT && variation in listOf(
+            InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+            InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
+            InputType.TYPE_TEXT_VARIATION_URI
+        )
+        val appDisablesSuggestions = (type and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0
+        passwordInput = isPassword
+        learningAllowed = !isPassword && !isPrivateText && !appDisablesSuggestions
         numericInput = cls == InputType.TYPE_CLASS_NUMBER || cls == InputType.TYPE_CLASS_PHONE
         if (!restartingShift(info) && !capsLock) {
             shift = cls == InputType.TYPE_CLASS_TEXT &&
@@ -369,7 +378,7 @@ class GlassKeyboardService : InputMethodService() {
         val previousWord = Regex("[\\p{L}\\p{M}'’-]+$").find(
             before.dropLast(current.length).trimEnd()
         )?.value.orEmpty()
-        if (!passwordInput && current.isNotBlank()) predictor.learnTypedText(word, previousWord)
+        if (learningAllowed && current.isNotBlank()) predictor.learnTypedText(word, previousWord)
         if (current.isNotEmpty()) ic.deleteSurroundingText(current.length, 0)
         ic.commitText(word + " ", 1)
         lastSuggestions = emptyList()
@@ -381,7 +390,7 @@ class GlassKeyboardService : InputMethodService() {
 
     private fun commit(text: String) {
         val ic = currentInputConnection
-        if (text == " " && !passwordInput) {
+        if (text == " " && learningAllowed) {
             val before = ic?.getTextBeforeCursor(120, 0)?.toString().orEmpty()
             val currentWord = Regex("[\\p{L}\\p{M}'’-]+$").find(before)?.value.orEmpty()
             val previousWord = Regex("[\\p{L}\\p{M}'’-]+$").find(
