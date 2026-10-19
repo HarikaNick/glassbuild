@@ -209,7 +209,7 @@ class GlassKeyboardService : InputMethodService() {
             text = label
             gravity = Gravity.CENTER
             textSize = size
-            typeface = Typeface.create("sans-serif", if (special) Typeface.MEDIUM else Typeface.NORMAL)
+            typeface = Typeface.create("sans-serif", if (special) Typeface.BOLD else Typeface.NORMAL)
             setTextColor(foreground())
             background = keyBackground(special, accent)
             isClickable = true
