@@ -191,7 +191,7 @@ class GlassKeyboardService : InputMethodService() {
                 val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
                 row.forEach { key ->
                     line.addView(keyView(key, false, 22f) { commit(key) },
-                        LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
+                        LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(keyGapDp(), keyGapDp(), keyGapDp(), keyGapDp()) })
                 }
                 panel.addView(line, LinearLayout.LayoutParams(-1, dp(49)))
             }
@@ -610,6 +610,9 @@ class GlassKeyboardService : InputMethodService() {
     }
 
     private fun keyRowHeightDp() = keyHeightDp() + 4
+
+    private fun keyGapDp(): Int = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        .getInt("key_spacing", 2).coerceIn(0, 5)
 
     private fun suggestionHeightDp(): Int {
         val widthDp = resources.displayMetrics.widthPixels / resources.displayMetrics.density
