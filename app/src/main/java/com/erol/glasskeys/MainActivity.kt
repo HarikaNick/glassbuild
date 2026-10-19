@@ -26,6 +26,7 @@ class MainActivity : Activity() {
     private lateinit var preview: TextView
     private lateinit var opacityLabel: TextView
     private lateinit var roundnessLabel: TextView
+    private lateinit var heightLabel: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +81,30 @@ class MainActivity : Activity() {
                 override fun onStopTrackingTouch(s: SeekBar?) {}
             })
         }, LinearLayout.LayoutParams(-1, dp(42)))
+        heightLabel = TextView(this).apply { setTextColor(ink); textSize = 14f }
+        root.addView(labelRow("Klavye yüksekliği", heightLabel).apply { setPadding(0, dp(18), 0, 0) })
+        root.addView(SeekBar(this).apply {
+            max = 16
+            progress = (prefs.getInt("keyboard_height", 42) - 34).coerceIn(0, 16)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, user: Boolean) {
+                    val value = p + 34
+                    heightLabel.text = when {
+                        value < 39 -> "$value dp · Kompakt"
+                        value > 45 -> "$value dp · Yüksek"
+                        else -> "$value dp · Standart"
+                    }
+                    if (user) prefs.edit().putInt("keyboard_height", value).apply()
+                }
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) {}
+            })
+        }, LinearLayout.LayoutParams(-1, dp(42)))
+        root.addView(TextView(this).apply {
+            text = "Değişiklik, klavyeyi kapatıp yeniden açınca uygulanır."
+            textSize = 12f
+            setTextColor(muted)
+        })
         roundnessLabel = TextView(this).apply { setTextColor(ink); textSize = 14f }
         root.addView(labelRow("Tuş yuvarlaklığı", roundnessLabel).apply { setPadding(0, dp(8), 0, 0) })
         root.addView(SeekBar(this).apply {
@@ -95,6 +120,7 @@ class MainActivity : Activity() {
                 override fun onStopTrackingTouch(s: SeekBar?) {}
             })
         }, LinearLayout.LayoutParams(-1, dp(42)))
+        heightLabel.text = "${prefs.getInt("keyboard_height", 42)} dp · Standart"
         opacityLabel.text = "${prefs.getInt("opacity", 92)}%"
         roundnessLabel.text = "${prefs.getInt("roundness", 9)} / 18"
         root.addView(Switch(this).apply {
