@@ -227,8 +227,9 @@ class GlassKeyboardService : InputMethodService() {
                 })
             }
             if (index == 2) {
+                // Long-press is handled by the touch repeater in keyView; do not
+                // consume it with a second long-click listener, or repeat deletion stops.
                 val del = keyView("⌫", true, 17f) { deleteOne() }
-                del.setOnLongClickListener { deleteWord(); true }
                 line.addView(del, LinearLayout.LayoutParams(0, dp(43), 1.35f).apply { setMargins(dp(2), dp(2), dp(1), dp(2)) })
             }
             panel.addView(line, LinearLayout.LayoutParams(-1, dp(47)))
