@@ -98,11 +98,6 @@ internal class TurkishPredictionEngine(context: Context) {
         return (stored + rules).distinct()
     }
 
-    private fun editDistanceForScore(a: String, b: String): Int {
-        if (a == b) return 0
-        return if (editDistanceAtMostOne(a, b)) 1 else 2
-    }
-
     private fun score(word: String, prefix: String, previous: String, personal: List<String>, contextual: List<String>): Int {
         var value = 0
         if (prefix.isNotEmpty()) {
