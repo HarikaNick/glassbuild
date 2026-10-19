@@ -81,7 +81,7 @@ class GlassKeyboardService : InputMethodService() {
         configureGlassWindow()
         panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(5), dp(5), dp(5), dp(5))
+            setPadding(dp(4), dp(4), dp(4), dp(5))
             background = panelBackground()
         }
         rebuildKeyboard()
@@ -169,7 +169,7 @@ class GlassKeyboardService : InputMethodService() {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
             }
-            panel.addView(suggestionsRow, LinearLayout.LayoutParams(-1, dp(34)))
+            panel.addView(suggestionsRow, LinearLayout.LayoutParams(-1, dp(suggestionHeightDp())))
             refreshSuggestions()
         }
 
@@ -208,11 +208,11 @@ class GlassKeyboardService : InputMethodService() {
             val line = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
-                if (index == 1) setPadding(dp(7), 0, dp(7), 0)
+                if (index == 1) setPadding(dp(8), 0, dp(8), 0)
             }
             if (index == 2) {
                 line.addView(keyView("⇧", true, 17f) { toggleShift() },
-                    LinearLayout.LayoutParams(0, dp(43), 1.35f).apply { setMargins(dp(1), dp(2), dp(2), dp(2)) })
+                    LinearLayout.LayoutParams(0, dp(keyHeightDp()), 1.35f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
             }
             keys.forEach { key ->
                 val shown = if (shift && !symbols) key.uppercase(Locale("tr", "TR")) else key
@@ -222,24 +222,24 @@ class GlassKeyboardService : InputMethodService() {
                         shift = false
                         rebuildKeyboard()
                     }
-                }, LinearLayout.LayoutParams(0, dp(43), 1f).apply {
-                    setMargins(dp(1), dp(2), dp(1), dp(2))
+                }, LinearLayout.LayoutParams(0, dp(keyHeightDp()), 1f).apply {
+                    setMargins(dp(2), dp(2), dp(2), dp(2))
                 })
             }
             if (index == 2) {
                 // Long-press is handled by the touch repeater in keyView; do not
                 // consume it with a second long-click listener, or repeat deletion stops.
                 val del = keyView("⌫", true, 17f) { deleteOne() }
-                line.addView(del, LinearLayout.LayoutParams(0, dp(43), 1.35f).apply { setMargins(dp(2), dp(2), dp(1), dp(2)) })
+                line.addView(del, LinearLayout.LayoutParams(0, dp(keyHeightDp()), 1.35f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
             }
-            panel.addView(line, LinearLayout.LayoutParams(-1, dp(47)))
+            panel.addView(line, LinearLayout.LayoutParams(-1, dp(keyRowHeightDp())))
         }
 
         val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         fun addBottom(label: String, weight: Float, special: Boolean = false, accent: Boolean = false, action: () -> Unit) {
             val size = when (label) { "🌐" -> 15f; "😊" -> 17f; "Türkçe" -> 13f; else -> 14f }
             bottom.addView(keyView(label, special, size, accent = accent, action = action),
-                LinearLayout.LayoutParams(0, dp(43), weight).apply { setMargins(dp(2), dp(3), dp(2), dp(2)) })
+                LinearLayout.LayoutParams(0, dp(keyHeightDp()), weight).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
         }
         // Match the visual rhythm of the iOS keyboard: compact utility keys,
         // a clearly dominant space bar, and a distinct blue editor action.
@@ -252,7 +252,7 @@ class GlassKeyboardService : InputMethodService() {
         addBottom("Türkçe", 3.8f) { commit(" ") }
         addBottom(".", 0.55f) { commit(".") }
         addBottom(actionLabel(), 1.1f, true, accent = true) { performEnter() }
-        panel.addView(bottom, LinearLayout.LayoutParams(-1, dp(47)))
+        panel.addView(bottom, LinearLayout.LayoutParams(-1, dp(keyRowHeightDp())))
     }
 
     private fun addKeyRow(keys: List<String>, height: Int, size: Float) {
@@ -581,6 +581,23 @@ class GlassKeyboardService : InputMethodService() {
             "light" -> false
             else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         }
+    }
+
+    private fun keyHeightDp(): Int {
+        val widthDp = resources.displayMetrics.widthPixels / resources.displayMetrics.density
+        return when {
+            widthDp < 350f -> 38
+            widthDp < 390f -> 40
+            widthDp > 440f -> 44
+            else -> 42
+        }
+    }
+
+    private fun keyRowHeightDp() = keyHeightDp() + 4
+
+    private fun suggestionHeightDp(): Int {
+        val widthDp = resources.displayMetrics.widthPixels / resources.displayMetrics.density
+        return if (widthDp < 350f) 31 else 34
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
