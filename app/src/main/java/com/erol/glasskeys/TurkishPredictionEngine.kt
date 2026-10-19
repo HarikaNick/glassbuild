@@ -45,7 +45,10 @@ internal class TurkishPredictionEngine(context: Context) {
         val candidates = (contextual + personal + commonWords).distinct()
         return candidates.asSequence()
             .filter { it != p && it.isNotBlank() }
-            .filter { if (p.isNotEmpty()) it.startsWith(p) else true }
+            .filter { candidate ->
+                p.isEmpty() || candidate.startsWith(p) ||
+                    (p.length >= 3 && hasSingleEditPrefixMatch(candidate, p))
+            }
             .sortedWith(
                 compareByDescending<String> { score(it, p, previous, personal, contextual) }
                     .thenBy { it.length }
@@ -72,6 +75,56 @@ internal class TurkishPredictionEngine(context: Context) {
         }
     }
 
+    /**
+     * Allows one insertion, deletion, substitution, or adjacent transposition in the typed prefix.
+     * This is a lightweight typo-tolerance fallback; exact prefix matches still rank higher.
+     */
+    private fun hasSingleEditPrefixMatch(candidate: String, prefix: String): Boolean {
+        val minLength = (prefix.length - 1).coerceAtLeast(1)
+        val maxLength = (prefix.length + 1).coerceAtMost(candidate.length)
+        for (length in minLength..maxLength) {
+            val head = candidate.take(length)
+            if (editDistanceAtMostOne(prefix, head)) return true
+        }
+        return false
+    }
+
+    private fun editDistanceAtMostOne(a: String, b: String): Boolean {
+        if (a == b) return true
+        if (kotlin.math.abs(a.length - b.length) > 1) return false
+
+        var i = 0
+        var j = 0
+        var edits = 0
+        while (i < a.length && j < b.length) {
+            if (a[i] == b[j]) {
+                i++
+                j++
+                continue
+            }
+            edits++
+            if (edits > 1) return false
+
+            if (a.length == b.length) {
+                // Treat adjacent swapped letters as one common typing mistake.
+                if (i + 1 < a.length && j + 1 < b.length &&
+                    a[i] == b[j + 1] && a[i + 1] == b[j]) {
+                    i += 2
+                    j += 2
+                } else {
+                    i++
+                    j++
+                }
+            } else if (a.length > b.length) {
+                i++
+            } else {
+                j++
+            }
+        }
+        if (i < a.length || j < b.length) edits++
+        return edits <= 1
+    }
+
     private fun contextWords(previous: String): List<String> {
         if (previous.isBlank()) return emptyList()
         val stored = prefs.all.entries.asSequence()
@@ -95,9 +148,17 @@ internal class TurkishPredictionEngine(context: Context) {
         return (stored + rules).distinct()
     }
 
+    private fun editDistanceForScore(a: String, b: String): Int {
+        if (a == b) return 0
+        return if (editDistanceAtMostOne(a, b)) 1 else 2
+    }
+
     private fun score(word: String, prefix: String, previous: String, personal: List<String>, contextual: List<String>): Int {
         var value = 0
-        if (prefix.isNotEmpty()) value += 100 - (word.length - prefix.length).coerceAtLeast(0)
+        if (prefix.isNotEmpty()) {
+            value += if (word.startsWith(prefix)) 100 - (word.length - prefix.length).coerceAtLeast(0)
+                else 45 - editDistanceForScore(word.take((prefix.length + 1).coerceAtMost(word.length)), prefix) * 10
+        }
         if (word in contextual) value += 80
         if (word in personal) value += 35
         if (previous.isNotBlank()) {
