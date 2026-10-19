@@ -355,7 +355,9 @@ class GlassKeyboardService : InputMethodService() {
             false
         }
         setOnClickListener {
-            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            if (getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("vibration", true)) {
+                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            }
             action()
         }
         val alternatives = alternativesFor(label)
