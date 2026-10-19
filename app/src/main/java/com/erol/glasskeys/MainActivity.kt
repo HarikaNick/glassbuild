@@ -120,6 +120,21 @@ class MainActivity : Activity() {
                 override fun onStopTrackingTouch(s: SeekBar?) {}
             })
         }, LinearLayout.LayoutParams(-1, dp(42)))
+        val fontSizeLabel = TextView(this).apply { setTextColor(ink); textSize = 14f }
+        root.addView(labelRow("Harf boyutu", fontSizeLabel).apply { setPadding(0, dp(8), 0, 0) })
+        root.addView(SeekBar(this).apply {
+            max = 8
+            progress = (prefs.getInt("font_size_adjust", 0) + 4).coerceIn(0, 8)
+            fontSizeLabel.text = "${14 + prefs.getInt("font_size_adjust", 0)} sp"
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, user: Boolean) {
+                    fontSizeLabel.text = "${10 + p} sp"
+                    if (user) prefs.edit().putInt("font_size_adjust", p - 4).apply()
+                }
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) {}
+            })
+        }, LinearLayout.LayoutParams(-1, dp(42)))
         roundnessLabel = TextView(this).apply { setTextColor(ink); textSize = 14f }
         root.addView(labelRow("Tuş yuvarlaklığı", roundnessLabel).apply { setPadding(0, dp(8), 0, 0) })
         root.addView(SeekBar(this).apply {
