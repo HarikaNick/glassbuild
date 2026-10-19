@@ -235,20 +235,20 @@ class GlassKeyboardService : InputMethodService() {
         }
 
         val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        fun addBottom(label: String, weight: Float, special: Boolean = false, action: () -> Unit) {
-            bottom.addView(keyView(label, special, if (label == "🌐") 17f else 14f, action = action),
-                LinearLayout.LayoutParams(0, dp(42), weight).apply { setMargins(dp(1), dp(2), dp(1), dp(2)) })
+        fun addBottom(label: String, weight: Float, special: Boolean = false, accent: Boolean = false, action: () -> Unit) {
+            bottom.addView(keyView(label, special, if (label == "🌐") 17f else 14f, accent = accent, action = action),
+                LinearLayout.LayoutParams(0, dp(43), weight).apply { setMargins(dp(2), dp(3), dp(2), dp(2)) })
         }
         addBottom(if (symbols) "ABC" else "?123", 1.35f, true) { symbols = !symbols; rebuildKeyboard() }
         addBottom("🌐", 0.9f, true) {
             try { switchToNextInputMethod(false) } catch (_: Exception) { emojiMode = true; rebuildKeyboard() }
         }
-        addBottom(",", 0.7f) { commit(",") }
+        addBottom(",", 0.65f) { commit(",") }
         addBottom("😊", 0.8f, true) { emojiMode = true; rebuildKeyboard() }
-        addBottom("Türkçe", 3.6f) { commit(" ") }
-        addBottom(".", 0.7f) { commit(".") }
-        addBottom(actionLabel(), 1.4f, true) { performEnter() }
-        panel.addView(bottom, LinearLayout.LayoutParams(-1, dp(46)))
+        addBottom("Türkçe", 3.8f) { commit(" ") }
+        addBottom(".", 0.65f) { commit(".") }
+        addBottom(actionLabel(), 1.45f, true, accent = true) { performEnter() }
+        panel.addView(bottom, LinearLayout.LayoutParams(-1, dp(47)))
     }
 
     private fun addKeyRow(keys: List<String>, height: Int, size: Float) {
@@ -323,9 +323,9 @@ class GlassKeyboardService : InputMethodService() {
         text = label
         gravity = Gravity.CENTER
         textSize = size
-        typeface = Typeface.create("sans-serif", if (special) Typeface.BOLD else Typeface.NORMAL)
-        setTextColor(foreground())
-        background = keyBackground(special, accent || label == actionLabel() && label in listOf("Git", "Ara", "Gönder", "İleri", "Bitti"))
+        typeface = Typeface.create("sans-serif", if (special || accent) Typeface.BOLD else Typeface.NORMAL)
+        setTextColor(if (accent) Color.WHITE else foreground())
+        background = keyBackground(special, accent)
         isClickable = true
         isFocusable = true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -355,7 +355,7 @@ class GlassKeyboardService : InputMethodService() {
             false
         }
         setOnClickListener {
-            tapFeedback()
+            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             action()
         }
         val alternatives = alternativesFor(label)
@@ -536,50 +536,29 @@ class GlassKeyboardService : InputMethodService() {
         else -> "↵"
     }
 
-    private fun tapFeedback() {
-        if (!getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("vibration", true)) return
-        try {
-            val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
-            if (vibrator.hasVibrator()) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator.vibrate(VibrationEffect.createOneShot(8, 24))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(8)
-                }
-            }
-        } catch (_: Exception) { }
-    }
-
     private fun panelBackground(): GradientDrawable {
-        val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val opacity = prefs.getInt("opacity", 92)
-        val alpha = (opacity * 2.1f).roundToInt().coerceIn(75, 220)
-        val top = if (isDark()) Color.argb(alpha, 49, 54, 66) else Color.argb(alpha, 246, 249, 255)
-        val bottom = if (isDark()) Color.argb((alpha * 0.88f).roundToInt(), 25, 29, 38)
-            else Color.argb((alpha * 0.92f).roundToInt(), 215, 224, 238)
-        return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(top, bottom)).apply {
-            cornerRadius = dp(25).toFloat()
-            setStroke(dp(1), if (isDark()) 0x66FFFFFF else 0x88FFFFFF.toInt())
+        val backgroundColor = if (isDark()) Color.rgb(28, 28, 30) else Color.rgb(209, 213, 219)
+        return GradientDrawable().apply {
+            setColor(backgroundColor)
+            cornerRadius = dp(18).toFloat()
+            setStroke(dp(1), if (isDark()) 0x22FFFFFF else 0x18000000)
         }
     }
 
     private fun keyBackground(special: Boolean, accent: Boolean): GradientDrawable {
-        val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val alpha = (prefs.getInt("opacity", 92) * 2.35f).roundToInt().coerceIn(90, 235)
-        val radius = prefs.getInt("roundness", 9).coerceIn(5, 18)
-        val base = when {
-            accent -> if (isDark()) intArrayOf( Color.rgb(111, 151, 211), Color.rgb(67, 99, 151))
-                else intArrayOf(Color.rgb(202, 222, 251), Color.rgb(157, 187, 231))
-            special -> if (isDark()) intArrayOf(Color.rgb(82, 89, 104), Color.rgb(55, 60, 73))
-                else intArrayOf(Color.rgb(221, 229, 241), Color.rgb(187, 199, 218))
-            isDark() -> intArrayOf(Color.rgb(72, 78, 92), Color.rgb(43, 48, 60))
-            else -> intArrayOf(Color.rgb(255, 255, 255), Color.rgb(235, 240, 248))
+        val radius = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getInt("roundness", 6).coerceIn(5, 7)
+        val color = when {
+            accent -> Color.rgb(0, 122, 255)
+            isDark() && special -> Color.rgb(72, 72, 74)
+            isDark() -> Color.rgb(58, 58, 60)
+            special -> Color.rgb(173, 179, 188)
+            else -> Color.WHITE
         }
-        val colors = base.map { Color.argb(alpha, Color.red(it), Color.green(it), Color.blue(it)) }.toIntArray()
-        return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, colors).apply {
+        return GradientDrawable().apply {
+            setColor(color)
             cornerRadius = dp(radius).toFloat()
-            setStroke(dp(1), if (isDark()) 0x44FFFFFF else 0x77FFFFFF)
+            setStroke(dp(1), if (isDark()) 0x0DFFFFFF else 0x14000000)
         }
     }
 
