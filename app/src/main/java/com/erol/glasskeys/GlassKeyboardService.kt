@@ -401,7 +401,7 @@ class GlassKeyboardService : InputMethodService() {
         ic?.commitText(text, 1)
         if (text == " " && !passwordInput && !capsLock && !symbols) {
             val before = ic?.getTextBeforeCursor(8, 0)?.toString().orEmpty()
-            if (Regex("[.!?][\\\\s]*$").containsMatchIn(before)) {
+            if (Regex("[.!?][\\s]*$").containsMatchIn(before)) {
                 shift = true
                 rebuildKeyboard()
             }
