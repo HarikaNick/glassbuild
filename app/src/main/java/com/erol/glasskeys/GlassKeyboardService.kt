@@ -3,6 +3,7 @@ package com.erol.glasskeys
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Build
@@ -10,41 +11,56 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.text.InputType
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.FrameLayout
-import android.graphics.Typeface
+import java.util.Locale
 import kotlin.math.roundToInt
 
-/**
- * Glass Keys — clean native Android IME implementation.
- * This replaces the previous Canvas keyboard implementation instead of patching it.
- */
+/** Native Android IME. UI is rebuilt from preferences and current editor capabilities. */
 class GlassKeyboardService : InputMethodService() {
-    private lateinit var keyboardRoot: LinearLayout
     private lateinit var panel: LinearLayout
     private var shift = false
     private var capsLock = false
     private var symbols = false
     private var emojiMode = false
     private var passwordInput = false
+    private var numericInput = false
     private var suggestionsRow: LinearLayout? = null
-    private var lastSpaceAt = 0L
+    private var lastSuggestions = emptyList<String>()
 
     private val letterRows = listOf(
         listOf("q","w","e","r","t","y","u","ı","o","p","ğ","ü"),
         listOf("a","s","d","f","g","h","j","k","l","ş","i"),
-        listOf("shift","z","x","c","v","b","n","m","ö","ç","delete")
+        listOf("z","x","c","v","b","n","m","ö","ç")
     )
     private val symbolRows = listOf(
         listOf("1","2","3","4","5","6","7","8","9","0"),
         listOf("@","#","₺","&","*","-","+","(",")","/"),
-        listOf("=","%","€","£",":",";","!","?","delete")
+        listOf("=","%","€","£",":",";","!","?")
     )
+    private val numberRows = listOf(
+        listOf("1","2","3"),
+        listOf("4","5","6"),
+        listOf("7","8","9"),
+        listOf("-","0",".")
+    )
+    private val dictionary = listOf(
+        "acaba","açık","adım","akşam","ama","ancak","artık","aslında","aynen",
+        "bana","bazen","belki","ben","beni","benim","beraber","bir","biraz","biri","birkaç","biz","bugün","büyük",
+        "cevap","çok","çünkü","daha","değil","demek","diye","doğru","dün",
+        "elbette","en","evet","ev","fazla","fakat","gibi","güzel","hangi","hala","hemen","her","herkes","hiç",
+        "için","iki","ilk","ile","inşallah","iş","iyi","kadar","kendi","kesin","ki","kim","kolay","konu",
+        "lazım","madem","maalesef","merhaba","mesela","mi","mı","miyim","miyim","mutlaka",
+        "nasıl","neden","ne","neden","nerede","neyse","olabilir","olacak","oldu","oldukça","olmak","olsun","onu","orada","önce",
+        "şey","şimdi","şöyle","tabii","tamam","tarafından","tekrar"," teşekkür","tek","telefon","tüm",
+        "ve","veya","ya","yani","yapabilir","yapacağım","yapmak","yardım","yeni","yerine","yok","zaman"
+    ).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+
     private val emojis = listOf(
         "😀","😃","😄","😁","😆","😅","😂","🤣","🥹","😊","😇","🙂","😉","😍","🥰","😘",
         "😋","😎","🤩","🥳","😭","😢","😡","🤔","🤗","🤫","😴","🤯","😱","👍","👏","🙏",
@@ -54,24 +70,19 @@ class GlassKeyboardService : InputMethodService() {
 
     override fun onCreateInputView(): View {
         configureGlassWindow()
-        keyboardRoot = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(5), dp(5), dp(5), dp(7))
-            setBackgroundColor(Color.TRANSPARENT)
-        }
         panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(4), dp(5), dp(4), dp(4))
-            background = glassPanel()
+            setPadding(dp(5), dp(5), dp(5), dp(5))
+            background = panelBackground()
         }
-        keyboardRoot.addView(panel, LinearLayout.LayoutParams(-1, -2))
         rebuildKeyboard()
-        return keyboardRoot
+        return panel
     }
 
     override fun onWindowShown() {
         super.onWindowShown()
         configureGlassWindow()
+        rebuildKeyboard()
     }
 
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
@@ -85,17 +96,21 @@ class GlassKeyboardService : InputMethodService() {
         refreshSuggestions()
     }
 
+    override fun onUpdateSelection(
+        oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int,
+        candidatesStart: Int, candidatesEnd: Int
+    ) {
+        super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        refreshSuggestions()
+    }
+
     private fun configureGlassWindow() {
         val w = window?.window ?: return
         w.setBackgroundDrawableResource(android.R.color.transparent)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             try {
-                w.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND or WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                w.attributes = w.attributes.apply {
-                    blurBehindRadius = dp(36)
-                    dimAmount = 0.035f
-                }
-                w.setDimAmount(0.035f)
+                w.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                w.attributes = w.attributes.apply { blurBehindRadius = dp(32) }
             } catch (_: Exception) { }
         }
     }
@@ -104,161 +119,230 @@ class GlassKeyboardService : InputMethodService() {
         val type = info?.inputType ?: InputType.TYPE_CLASS_TEXT
         val cls = type and InputType.TYPE_MASK_CLASS
         val variation = type and InputType.TYPE_MASK_VARIATION
-        passwordInput = variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
-            variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
-            variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD ||
-            (cls == InputType.TYPE_CLASS_NUMBER && variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD)
-        val caps = cls == InputType.TYPE_CLASS_TEXT &&
-            (type and (InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_CAP_WORDS or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS)) != 0
-        if (caps && !passwordInput) shift = true
+        passwordInput = (cls == InputType.TYPE_CLASS_TEXT && variation in listOf(
+            InputType.TYPE_TEXT_VARIATION_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+        )) || (cls == InputType.TYPE_CLASS_NUMBER && variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD)
+        numericInput = cls == InputType.TYPE_CLASS_NUMBER || cls == InputType.TYPE_CLASS_PHONE
+        if (!restartingShift(info) && !capsLock) {
+            shift = cls == InputType.TYPE_CLASS_TEXT &&
+                (type and (InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_CAP_WORDS or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS)) != 0
+        }
+        if (passwordInput) emojiMode = false
         if (::panel.isInitialized) rebuildKeyboard()
     }
+
+    private fun restartingShift(info: EditorInfo?) = info == null
 
     private fun rebuildKeyboard() {
         if (!::panel.isInitialized) return
         panel.removeAllViews()
+        panel.background = panelBackground()
         suggestionsRow = null
-        if (!emojiMode && !passwordInput) {
-            val row = LinearLayout(this).apply {
-                gravity = Gravity.CENTER
+
+        if (!emojiMode && !passwordInput && !numericInput) {
+            suggestionsRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
             }
-            suggestionsRow = row
-            panel.addView(row, LinearLayout.LayoutParams(-1, dp(34)))
+            panel.addView(suggestionsRow, LinearLayout.LayoutParams(-1, dp(34)))
             refreshSuggestions()
         }
 
         if (emojiMode) {
-            val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             emojis.chunked(8).forEach { group ->
                 val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
                 group.forEach { emoji ->
-                    row.addView(keyView(emoji, false, 27f) { commit(emoji) },
-                        LinearLayout.LayoutParams(0, dp(38), 1f))
+                    row.addView(keyView(emoji, false, 24f) { commit(emoji) },
+                        LinearLayout.LayoutParams(0, dp(39), 1f).apply { setMargins(dp(1), dp(1), dp(1), dp(1)) })
                 }
-                grid.addView(row, LinearLayout.LayoutParams(-1, dp(39)))
+                panel.addView(row, LinearLayout.LayoutParams(-1, dp(41)))
             }
-            panel.addView(grid)
-            panel.addView(utilityRow(listOf("ABC" to { emojiMode = false; rebuildKeyboard() }, "⌫" to { delete() })))
+            panel.addView(utilityRow(listOf("ABC" to { emojiMode = false; rebuildKeyboard() }, "⌫" to { deleteOne() })))
             return
         }
 
+        if (numericInput) {
+            numberRows.forEach { row ->
+                val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+                row.forEach { key ->
+                    line.addView(keyView(key, false, 22f) { commit(key) },
+                        LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
+                }
+                panel.addView(line, LinearLayout.LayoutParams(-1, dp(49)))
+            }
+            panel.addView(utilityRow(listOf("−" to { deleteOne() }, "⌫" to { deleteWord() }, actionLabel() to { performEnter() })))
+            return
+        }
+
+        if (getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("number_row", false) && !symbols) {
+            addKeyRow(listOf("1","2","3","4","5","6","7","8","9","0"), 34, 17f)
+        }
+
         val rows = if (symbols) symbolRows else letterRows
-        rows.forEachIndexed { index, row ->
+        rows.forEachIndexed { index, keys ->
             val line = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
+                if (index == 1) setPadding(dp(7), 0, dp(7), 0)
             }
-            if (index == 1) line.setPadding(dp(9), 0, dp(9), 0)
             if (index == 2) {
-                line.addView(keyView(if (shift) "⇧" else "⇧", true, 17f) { toggleShift() },
-                    LinearLayout.LayoutParams(0, dp(43), 1.35f))
+                line.addView(keyView("⇧", true, 17f) { toggleShift() },
+                    LinearLayout.LayoutParams(0, dp(43), 1.35f).apply { setMargins(dp(1), dp(2), dp(2), dp(2)) })
             }
-            row.filterNot { it == "shift" || it == "delete" }.forEach { key ->
-                line.addView(keyView(if (shift && !symbols) key.uppercase() else key, false, 20f) {
-                    if (key == "shift" || key == "delete") return@keyView
-                    commit(key)
-                    if (shift && !capsLock && key.length == 1 && key[0].isLetter()) {
+            keys.forEach { key ->
+                val shown = if (shift && !symbols) key.uppercase(Locale("tr", "TR")) else key
+                line.addView(keyView(shown, false, 19f) {
+                    commit(keyForCommit(key))
+                    if (shift && !capsLock && key.any { it.isLetter() }) {
                         shift = false
                         rebuildKeyboard()
                     }
                 }, LinearLayout.LayoutParams(0, dp(43), 1f).apply {
-                    setMargins(dp(1.5f), dp(2), dp(1.5f), dp(2))
+                    setMargins(dp(1), dp(2), dp(1), dp(2))
                 })
             }
             if (index == 2) {
-                line.addView(keyView("⌫", true, 17f) { delete() },
-                    LinearLayout.LayoutParams(0, dp(43), 1.35f))
+                val del = keyView("⌫", true, 17f) { deleteOne() }
+                del.setOnLongClickListener { deleteWord(); true }
+                line.addView(del, LinearLayout.LayoutParams(0, dp(43), 1.35f).apply { setMargins(dp(2), dp(2), dp(1), dp(2)) })
             }
             panel.addView(line, LinearLayout.LayoutParams(-1, dp(47)))
         }
 
-        val bottom = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
+        val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        fun addBottom(label: String, weight: Float, special: Boolean = false, action: () -> Unit) {
+            bottom.addView(keyView(label, special, if (label == "🌐") 17f else 14f, action = action),
+                LinearLayout.LayoutParams(0, dp(42), weight).apply { setMargins(dp(1), dp(2), dp(1), dp(2)) })
         }
-        bottom.addView(keyView(if (symbols) "ABC" else "?123", true, 14f) {
-            symbols = !symbols
-            rebuildKeyboard()
-        }, LinearLayout.LayoutParams(0, dp(42), 1.45f).apply { setMargins(dp(1), dp(2), dp(3), dp(2)) })
-        bottom.addView(keyView("🌐", true, 17f) {
+        addBottom(if (symbols) "ABC" else "?123", 1.35f, true) { symbols = !symbols; rebuildKeyboard() }
+        addBottom("🌐", 0.9f, true) {
             try { switchToNextInputMethod(false) } catch (_: Exception) { emojiMode = true; rebuildKeyboard() }
-        }, LinearLayout.LayoutParams(0, dp(42), 1.05f).apply { setMargins(dp(1), dp(2), dp(3), dp(2)) })
-        bottom.addView(keyView(",", false, 19f) { commit(",") },
-            LinearLayout.LayoutParams(0, dp(42), 0.8f).apply { setMargins(dp(1), dp(2), dp(3), dp(2)) })
-        bottom.addView(keyView("Türkçe", false, 14f) { commit(" ") },
-            LinearLayout.LayoutParams(0, dp(42), 4.3f).apply { setMargins(dp(1), dp(2), dp(3), dp(2)) })
-        bottom.addView(keyView(".", false, 19f) { commit(".") },
-            LinearLayout.LayoutParams(0, dp(42), 0.8f).apply { setMargins(dp(1), dp(2), dp(3), dp(2)) })
-        bottom.addView(keyView(actionLabel(), true, 14f, true) { performEnter() },
-            LinearLayout.LayoutParams(0, dp(42), 1.55f).apply { setMargins(dp(1), dp(2), dp(1), dp(2)) })
+        }
+        addBottom(",", 0.7f) { commit(",") }
+        addBottom("😊", 0.8f, true) { emojiMode = true; rebuildKeyboard() }
+        addBottom("Türkçe", 3.6f) { commit(" ") }
+        addBottom(".", 0.7f) { commit(".") }
+        addBottom(actionLabel(), 1.4f, true) { performEnter() }
         panel.addView(bottom, LinearLayout.LayoutParams(-1, dp(46)))
-        refreshSuggestions()
+    }
+
+    private fun addKeyRow(keys: List<String>, height: Int, size: Float) {
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        keys.forEach { key ->
+            row.addView(keyView(key, false, size) { commit(key) },
+                LinearLayout.LayoutParams(0, dp(height), 1f).apply { setMargins(dp(1), dp(1), dp(1), dp(1)) })
+        }
+        panel.addView(row, LinearLayout.LayoutParams(-1, dp(height + 2)))
     }
 
     private fun utilityRow(items: List<Pair<String, () -> Unit>>) = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
         items.forEach { (label, action) ->
-            addView(keyView(label, true, 16f, label == "ABC", action),
+            addView(keyView(label, true, 16f, action = action),
                 LinearLayout.LayoutParams(0, dp(42), 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
         }
     }
 
-    private fun keyView(label: String, special: Boolean, size: Float, accent: Boolean = false, action: () -> Unit) =
-        TextView(this).apply {
-            text = label
-            gravity = Gravity.CENTER
-            textSize = size
-            typeface = Typeface.create("sans-serif", if (special) Typeface.BOLD else Typeface.NORMAL)
-            setTextColor(foreground())
-            background = keyBackground(special, accent)
-            isClickable = true
-            isFocusable = true
-            setOnClickListener {
-                tapFeedback()
-                action()
-            }
+    private fun keyView(
+        label: String,
+        special: Boolean,
+        size: Float,
+        accent: Boolean = false,
+        action: () -> Unit
+    ) = TextView(this).apply {
+        text = label
+        gravity = Gravity.CENTER
+        textSize = size
+        typeface = Typeface.create("sans-serif", if (special) Typeface.BOLD else Typeface.NORMAL)
+        setTextColor(foreground())
+        background = keyBackground(special, accent)
+        isClickable = true
+        isFocusable = true
+        contentDescription = when (label) {
+            "⌫" -> "Sil"
+            "⇧" -> "Büyük harf"
+            "?123" -> "Semboller"
+            "Türkçe" -> "Boşluk"
+            else -> label
         }
+        setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> v.animate().scaleX(0.94f).scaleY(0.92f).setDuration(65).start()
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> v.animate().scaleX(1f).scaleY(1f).setDuration(100).start()
+            }
+            false
+        }
+        setOnClickListener {
+            tapFeedback()
+            action()
+        }
+    }
 
     private fun refreshSuggestions() {
         val row = suggestionsRow ?: return
-        row.removeAllViews()
-        if (passwordInput || emojiMode) return
+        if (!::panel.isInitialized || passwordInput || emojiMode) return
         val before = currentInputConnection?.getTextBeforeCursor(80, 0)?.toString().orEmpty()
         val prefix = Regex("[\\p{L}\\p{M}]+$").find(before)?.value.orEmpty()
-        val words = if (prefix.isBlank()) listOf(" ", " ", " ") else listOf(prefix, "", "")
-        words.take(3).forEachIndexed { i, word ->
+        val words = if (prefix.length < 2) emptyList() else dictionary
+            .filter { it.startsWith(prefix.lowercase(Locale("tr", "TR"))) && !it.equals(prefix, true) }
+            .sortedBy { it.length }
+            .take(3)
+        val display = if (prefix.isBlank()) listOf(" ", " ", " ") else listOf(prefix) + words
+        val finalWords = display.take(3)
+        if (finalWords == lastSuggestions && row.childCount == finalWords.size) return
+        lastSuggestions = finalWords
+        row.removeAllViews()
+        finalWords.forEachIndexed { i, word ->
             val cell = TextView(this).apply {
                 text = word
                 gravity = Gravity.CENTER
                 textSize = 14f
                 setTextColor(foreground())
-                setOnClickListener {
-                    if (word.isNotBlank()) {
-                        val current = Regex("[\\p{L}\\p{M}]+$").find(
-                            currentInputConnection?.getTextBeforeCursor(100, 0)?.toString().orEmpty()
-                        )?.value.orEmpty()
-                        if (current.isNotEmpty()) currentInputConnection?.deleteSurroundingText(current.length, 0)
-                        commit(word + " ")
-                    }
-                }
+                isClickable = word.isNotBlank()
+                setOnClickListener { if (word.isNotBlank()) replaceCurrentWord(word) }
             }
             row.addView(cell, LinearLayout.LayoutParams(0, -1, 1f))
-            if (i < 2) row.addView(View(this).apply {
-                setBackgroundColor(if (isDark()) 0x44FFFFFF else 0x33000000)
-            }, LinearLayout.LayoutParams(dp(1), dp(18)))
+            if (i < finalWords.lastIndex) row.addView(View(this).apply {
+                setBackgroundColor(if (isDark()) 0x33FFFFFF else 0x22000000)
+            }, LinearLayout.LayoutParams(dp(1), dp(17)))
         }
     }
 
-    private fun commit(text: String) {
-        currentInputConnection?.commitText(text, 1)
+    private fun replaceCurrentWord(word: String) {
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(100, 0)?.toString().orEmpty()
+        val current = Regex("[\\p{L}\\p{M}]+$").find(before)?.value.orEmpty()
+        if (current.isNotEmpty()) ic.deleteSurroundingText(current.length, 0)
+        ic.commitText(word + " ", 1)
+        lastSuggestions = emptyList()
         refreshSuggestions()
     }
 
-    private fun delete() {
+    private fun keyForCommit(key: String): String =
+        if (shift && !symbols) key.uppercase(Locale("tr", "TR")) else key
+
+    private fun commit(text: String) {
+        currentInputConnection?.commitText(text, 1)
+        lastSuggestions = emptyList()
+        refreshSuggestions()
+    }
+
+    private fun deleteOne() {
         val ic = currentInputConnection ?: return
         val selected = ic.getSelectedText(0)
         if (!selected.isNullOrEmpty()) ic.commitText("", 1) else ic.deleteSurroundingText(1, 0)
+        lastSuggestions = emptyList()
+        refreshSuggestions()
+    }
+
+    private fun deleteWord() {
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(100, 0)?.toString().orEmpty()
+        val count = Regex("\\s*\\S+$").find(before)?.value?.length ?: 0
+        if (count > 0) ic.deleteSurroundingText(count, 0) else deleteOne()
+        lastSuggestions = emptyList()
         refreshSuggestions()
     }
 
@@ -281,7 +365,9 @@ class GlassKeyboardService : InputMethodService() {
         if (action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED &&
             (options and EditorInfo.IME_FLAG_NO_ENTER_ACTION) == 0) {
             ic.performEditorAction(action)
-        } else ic.commitText("\n", 1)
+        } else {
+            ic.commitText("\n", 1)
+        }
     }
 
     private fun actionLabel(): String = when (currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)) {
@@ -294,55 +380,63 @@ class GlassKeyboardService : InputMethodService() {
     }
 
     private fun tapFeedback() {
-        if (!getSharedPreferences("glass_keys_prefs", Context.MODE_PRIVATE).getBoolean("vibration", true)) return
+        if (!getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("vibration", true)) return
         try {
-            val v = getSystemService(VIBRATOR_SERVICE) as Vibrator
-            if (v.hasVibrator()) {
-                if (Build.VERSION.SDK_INT >= 26) v.vibrate(VibrationEffect.createOneShot(8, 24))
-                else {
+            val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
+            if (vibrator.hasVibrator()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(8, 24))
+                } else {
                     @Suppress("DEPRECATION")
-                    v.vibrate(8)
+                    vibrator.vibrate(8)
                 }
             }
         } catch (_: Exception) { }
     }
 
-    private fun glassPanel(): GradientDrawable {
-        val a = getSharedPreferences("glass_keys_prefs", Context.MODE_PRIVATE).getInt("opacity", 92)
-        val alpha = (a * 2.1f).roundToInt().coerceIn(75, 220)
-        val color = if (isDark()) Color.argb(alpha, 36, 39, 47) else Color.argb(alpha, 228, 233, 242)
+    private fun panelBackground(): GradientDrawable {
+        val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val opacity = prefs.getInt("opacity", 92)
+        val alpha = (opacity * 2.1f).roundToInt().coerceIn(75, 220)
+        val color = if (isDark()) Color.argb(alpha, 29, 32, 40) else Color.argb(alpha, 228, 233, 242)
         return GradientDrawable().apply {
             setColor(color)
-            cornerRadius = dp(27).toFloat()
-            setStroke(dp(1), if (isDark()) 0x44FFFFFF else 0x66FFFFFF)
+            cornerRadius = dp(25).toFloat()
+            setStroke(dp(1), if (isDark()) 0x55FFFFFF else 0x77FFFFFF)
         }
     }
 
     private fun keyBackground(special: Boolean, accent: Boolean): GradientDrawable {
-        val alpha = getSharedPreferences("glass_keys_prefs", Context.MODE_PRIVATE).getInt("opacity", 92)
-            .let { (it * 2.35f).roundToInt().coerceIn(90, 235) }
+        val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val alpha = (prefs.getInt("opacity", 92) * 2.35f).roundToInt().coerceIn(90, 235)
+        val radius = prefs.getInt("roundness", 9).coerceIn(5, 18)
         val color = when {
-            accent -> if (isDark()) Color.argb(alpha, 87, 125, 179) else Color.argb(alpha, 173, 200, 238)
-            special -> if (isDark()) Color.argb(alpha, 75, 79, 89) else Color.argb(alpha, 195, 204, 218)
-            isDark() -> Color.argb(alpha, 66, 69, 78)
+            accent -> if (isDark()) Color.argb(alpha, 89, 127, 184) else Color.argb(alpha, 173, 200, 238)
+            special -> if (isDark()) Color.argb(alpha, 67, 71, 82) else Color.argb(alpha, 198, 207, 221)
+            isDark() -> Color.argb(alpha, 54, 58, 68)
             else -> Color.argb(alpha, 250, 251, 254)
         }
         return GradientDrawable().apply {
             setColor(color)
-            cornerRadius = dp(10).toFloat()
-            setStroke(dp(1), if (isDark()) 0x22FFFFFF else 0x44FFFFFF)
+            cornerRadius = dp(radius).toFloat()
+            setStroke(dp(1), if (isDark()) 0x2AFFFFFF else 0x55FFFFFF)
         }
     }
 
     private fun foreground() = if (isDark()) Color.WHITE else Color.rgb(31, 36, 45)
+
     private fun isDark(): Boolean {
-        val mode = getSharedPreferences("glass_keys_prefs", Context.MODE_PRIVATE).getString("theme", "system")
+        val mode = getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("theme", "system")
         return when (mode) {
             "dark" -> true
             "light" -> false
             else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         }
     }
+
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
-    private fun dp(value: Float) = (value * resources.displayMetrics.density + 0.5f).toInt()
+
+    companion object {
+        private const val PREFS = "glass_keys_prefs"
+    }
 }
