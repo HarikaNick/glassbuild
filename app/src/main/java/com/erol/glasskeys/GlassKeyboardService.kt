@@ -326,7 +326,9 @@ class GlassKeyboardService : InputMethodService() {
     ) = TextView(this).apply {
         text = label
         gravity = Gravity.CENTER
-        textSize = size
+        val fontAdjustment = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getInt("font_size_adjust", 0).coerceIn(-4, 4)
+        textSize = (size + fontAdjustment).coerceIn(11f, 30f)
         typeface = Typeface.create("sans-serif", if (special || accent) Typeface.BOLD else Typeface.NORMAL)
         setTextColor(if (accent) Color.WHITE else foreground())
         background = keyBackground(special, accent)
