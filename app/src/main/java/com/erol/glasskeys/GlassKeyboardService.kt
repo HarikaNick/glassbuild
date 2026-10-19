@@ -429,7 +429,7 @@ class GlassKeyboardService : InputMethodService() {
                 text = word
                 gravity = Gravity.CENTER
                 textSize = 14f
-                typeface = Typeface.create("sans-serif", if (i == 1) Typeface.MEDIUM else Typeface.NORMAL)
+                typeface = Typeface.create("sans-serif", if (i == 1) Typeface.BOLD else Typeface.NORMAL)
                 setTextColor(if (i == 1 && word.isNotBlank()) {
                     if (isDark()) Color.rgb(157, 195, 255) else Color.rgb(0, 92, 205)
                 } else foreground())
