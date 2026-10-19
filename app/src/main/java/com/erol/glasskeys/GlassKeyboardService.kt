@@ -417,7 +417,20 @@ class GlassKeyboardService : InputMethodService() {
     private fun deleteOne() {
         val ic = currentInputConnection ?: return
         val selected = ic.getSelectedText(0)
-        if (!selected.isNullOrEmpty()) ic.commitText("", 1) else ic.deleteSurroundingText(1, 0)
+        if (!selected.isNullOrEmpty()) {
+            ic.commitText("", 1)
+        } else {
+            // Delete one Unicode code point so backspace never leaves half of an emoji surrogate pair.
+            val before = ic.getTextBeforeCursor(2, 0)?.toString().orEmpty()
+            val lastTwoAreSurrogatePair = before.length >= 2 &&
+                Character.isHighSurrogate(before[before.length - 2]) &&
+                Character.isLowSurrogate(before[before.length - 1])
+            val utf16Length = if (lastTwoAreSurrogatePair) 2 else 1
+            if (!ic.deleteSurroundingTextInCodePoints(1, 0)) {
+                // Some third-party editors may not implement the code-point API.
+                ic.deleteSurroundingText(utf16Length, 0)
+            }
+        }
         lastSuggestions = emptyList()
         refreshSuggestions()
     }
