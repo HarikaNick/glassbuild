@@ -33,12 +33,17 @@ class GlassKeyboardService : InputMethodService() {
         // Keep the Canvas-rendered glass as a graceful fallback on unsupported devices.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             try {
-                imeWindow.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                // Blur-behind is applied by the window manager only when the IME window
+                // is translucent and the behind-content dim/blur flags are enabled.
+                imeWindow.addFlags(
+                    android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND or
+                        android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND
+                )
                 imeWindow.attributes = imeWindow.attributes.apply {
-                    blurBehindRadius = (32f * resources.displayMetrics.density).toInt()
-                    dimAmount = 0.08f
+                    blurBehindRadius = (42f * resources.displayMetrics.density).toInt()
+                    dimAmount = 0.06f
                 }
-                imeWindow.setDimAmount(0.08f)
+                imeWindow.setDimAmount(0.06f)
             } catch (_: Exception) {
                 // Some OEM IME windows do not expose cross-window blur.
             }
