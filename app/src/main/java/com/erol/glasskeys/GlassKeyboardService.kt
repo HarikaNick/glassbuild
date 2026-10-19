@@ -277,6 +277,10 @@ class GlassKeyboardService : InputMethodService() {
         background = keyBackground(special, accent)
         isClickable = true
         isFocusable = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            elevation = dp(if (special) 1 else 2).toFloat()
+            stateListAnimator = null
+        }
         contentDescription = when (label) {
             "⌫" -> "Sil"
             "⇧" -> "Büyük harf"
@@ -479,11 +483,12 @@ class GlassKeyboardService : InputMethodService() {
         val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val opacity = prefs.getInt("opacity", 92)
         val alpha = (opacity * 2.1f).roundToInt().coerceIn(75, 220)
-        val color = if (isDark()) Color.argb(alpha, 29, 32, 40) else Color.argb(alpha, 228, 233, 242)
-        return GradientDrawable().apply {
-            setColor(color)
+        val top = if (isDark()) Color.argb(alpha, 49, 54, 66) else Color.argb(alpha, 246, 249, 255)
+        val bottom = if (isDark()) Color.argb((alpha * 0.88f).roundToInt(), 25, 29, 38)
+            else Color.argb((alpha * 0.92f).roundToInt(), 215, 224, 238)
+        return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(top, bottom)).apply {
             cornerRadius = dp(25).toFloat()
-            setStroke(dp(1), if (isDark()) 0x55FFFFFF else 0x77FFFFFF)
+            setStroke(dp(1), if (isDark()) 0x66FFFFFF else 0x88FFFFFF.toInt())
         }
     }
 
@@ -491,16 +496,18 @@ class GlassKeyboardService : InputMethodService() {
         val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val alpha = (prefs.getInt("opacity", 92) * 2.35f).roundToInt().coerceIn(90, 235)
         val radius = prefs.getInt("roundness", 9).coerceIn(5, 18)
-        val color = when {
-            accent -> if (isDark()) Color.argb(alpha, 89, 127, 184) else Color.argb(alpha, 173, 200, 238)
-            special -> if (isDark()) Color.argb(alpha, 67, 71, 82) else Color.argb(alpha, 198, 207, 221)
-            isDark() -> Color.argb(alpha, 54, 58, 68)
-            else -> Color.argb(alpha, 250, 251, 254)
+        val base = when {
+            accent -> if (isDark()) intArrayOf( Color.rgb(111, 151, 211), Color.rgb(67, 99, 151))
+                else intArrayOf(Color.rgb(202, 222, 251), Color.rgb(157, 187, 231))
+            special -> if (isDark()) intArrayOf(Color.rgb(82, 89, 104), Color.rgb(55, 60, 73))
+                else intArrayOf(Color.rgb(221, 229, 241), Color.rgb(187, 199, 218))
+            isDark() -> intArrayOf(Color.rgb(72, 78, 92), Color.rgb(43, 48, 60))
+            else -> intArrayOf(Color.rgb(255, 255, 255), Color.rgb(235, 240, 248))
         }
-        return GradientDrawable().apply {
-            setColor(color)
+        val colors = base.map { Color.argb(alpha, Color.red(it), Color.green(it), Color.blue(it)) }.toIntArray()
+        return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, colors).apply {
             cornerRadius = dp(radius).toFloat()
-            setStroke(dp(1), if (isDark()) 0x2AFFFFFF else 0x55FFFFFF)
+            setStroke(dp(1), if (isDark()) 0x44FFFFFF else 0x77FFFFFF)
         }
     }
 
