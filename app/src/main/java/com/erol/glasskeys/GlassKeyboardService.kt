@@ -596,12 +596,17 @@ class GlassKeyboardService : InputMethodService() {
 
     private fun keyHeightDp(): Int {
         val widthDp = resources.displayMetrics.widthPixels / resources.displayMetrics.density
-        return when {
+        val base = when {
             widthDp < 350f -> 38
             widthDp < 390f -> 40
             widthDp > 440f -> 44
             else -> 42
         }
+        // A user-set height is shared with the settings activity and clamped
+        // to a comfortable range so rows cannot become unusably small or huge.
+        val configured = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getInt("keyboard_height", 42).coerceIn(34, 50)
+        return (base + configured - 42).coerceIn(32, 52)
     }
 
     private fun keyRowHeightDp() = keyHeightDp() + 4
