@@ -237,18 +237,21 @@ class GlassKeyboardService : InputMethodService() {
 
         val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         fun addBottom(label: String, weight: Float, special: Boolean = false, accent: Boolean = false, action: () -> Unit) {
-            bottom.addView(keyView(label, special, if (label == "🌐") 17f else 14f, accent = accent, action = action),
+            val size = when (label) { "🌐" -> 15f; "😊" -> 17f; "Türkçe" -> 13f; else -> 14f }
+            bottom.addView(keyView(label, special, size, accent = accent, action = action),
                 LinearLayout.LayoutParams(0, dp(43), weight).apply { setMargins(dp(2), dp(3), dp(2), dp(2)) })
         }
-        addBottom(if (symbols) "ABC" else "?123", 1.35f, true) { symbols = !symbols; rebuildKeyboard() }
-        addBottom("🌐", 0.9f, true) {
+        // Match the visual rhythm of the iOS keyboard: compact utility keys,
+        // a clearly dominant space bar, and a distinct blue editor action.
+        addBottom(if (symbols) "ABC" else "?123", 1.15f, true) { symbols = !symbols; rebuildKeyboard() }
+        addBottom("🌐", 0.65f, true) {
             try { switchToNextInputMethod(false) } catch (_: Exception) { emojiMode = true; rebuildKeyboard() }
         }
-        addBottom(",", 0.65f) { commit(",") }
-        addBottom("😊", 0.8f, true) { emojiMode = true; rebuildKeyboard() }
+        addBottom("😊", 0.7f, true) { emojiMode = true; rebuildKeyboard() }
+        addBottom(",", 0.55f) { commit(",") }
         addBottom("Türkçe", 3.8f) { commit(" ") }
-        addBottom(".", 0.65f) { commit(".") }
-        addBottom(actionLabel(), 1.45f, true, accent = true) { performEnter() }
+        addBottom(".", 0.55f) { commit(".") }
+        addBottom(actionLabel(), 1.1f, true, accent = true) { performEnter() }
         panel.addView(bottom, LinearLayout.LayoutParams(-1, dp(47)))
     }
 
@@ -540,7 +543,11 @@ class GlassKeyboardService : InputMethodService() {
     }
 
     private fun panelBackground(): GradientDrawable {
-        val backgroundColor = if (isDark()) Color.rgb(28, 28, 30) else Color.rgb(209, 213, 219)
+        val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val opacity = prefs.getInt("opacity", 92).coerceIn(35, 100)
+        val alpha = (opacity * 2.55f).roundToInt().coerceIn(90, 255)
+        val rgb = if (isDark()) intArrayOf(28, 28, 30) else intArrayOf(209, 213, 219)
+        val backgroundColor = Color.argb(alpha, rgb[0], rgb[1], rgb[2])
         return GradientDrawable().apply {
             setColor(backgroundColor)
             cornerRadius = dp(18).toFloat()
