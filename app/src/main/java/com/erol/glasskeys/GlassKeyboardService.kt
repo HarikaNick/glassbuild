@@ -364,8 +364,12 @@ class GlassKeyboardService : InputMethodService() {
 
     private fun replaceCurrentWord(word: String) {
         val ic = currentInputConnection ?: return
-        val before = ic.getTextBeforeCursor(100, 0)?.toString().orEmpty()
+        val before = ic.getTextBeforeCursor(120, 0)?.toString().orEmpty()
         val current = Regex("[\\p{L}\\p{M}]+$").find(before)?.value.orEmpty()
+        val previousWord = Regex("[\\p{L}\\p{M}'’-]+$").find(
+            before.dropLast(current.length).trimEnd()
+        )?.value.orEmpty()
+        if (!passwordInput && current.isNotBlank()) predictor.learnTypedText(word, previousWord)
         if (current.isNotEmpty()) ic.deleteSurroundingText(current.length, 0)
         ic.commitText(word + " ", 1)
         lastSuggestions = emptyList()
