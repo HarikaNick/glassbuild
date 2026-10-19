@@ -31,6 +31,58 @@ internal class TurkishPredictionEngine(context: Context) {
         güzel zor zaman zamanında zannetmek zengin zira
         merak ediyorum ne düşünüyorsun sence bence bence de olur mu olur mu acaba olabilir mi nasıl yapılır neden böyle teşekkür ederim iyi geceler günaydın
         nasılsın iyiyim teşekkürler sorun değil tamamdır olur tabii ki evet hayır belki sonra şimdi değil birazdan hemen geliyorum gidiyorum yapıyorum
+        aşağı açılmak açmak alışmak anlat anlatmak anlaşılmak aramak artmak atmak ay ayakkabı ayarlamak ayrılmak
+        bakım bakmak banka başarmak başlangıç başvurmak beklemek benzer biçim bilgisayar bin binmek birinci bitirmek
+        bırak bırakmak bul bulmak buluşmak burası bütün cevaplamak çalış çalışmak çalışan çalışma çalışma arkadaşım
+        çanta çek çekmek çık çıkmak çıkış çiftçi ciddi cilt cihaz cümle cevaplar çevre çevirmek çeviri çorba
+        daire dakika dikkat dinle dinlemek dinlenmek dinlenme doğa doğmak dokunmak doktor dolu dön dönmek döner
+        düşmek düşünmek duy duymak duygu düzen düzenlemek düzeltmek eğlence eğlenmek eklemek ekip ekmek ekran
+        elektrik elektronik emek emekli emin emniyet enerji engel engellemek ekipman eşya et etmek etki etmek
+        evde evden evim evine evler evlilik eylül fabrika fayda faydalı farklı fark etmek farkında olmak
+        fırsat fotoğraf fotoğrafçı futbol futbolcu galiba garanti gaz geç geçmek gelecek geliş gelişmek gelişim
+        gelişmiş gelin gelmek geniş gereği gerekli gerekmek geri getirmek gez gezmek geçmiş geçirmek geçiş
+        gidip girmek giriş gitmiş görmek göster göstermek görev görevli göz gözlük güç güçlenmek güçlük
+        hafta haftalık haftaya haber haberler haberleşmek hazır hazırlamak hazırlık hatırlamak hava havalı
+        hayatım hayvan hayırlı hesap hesaplamak hesaplama hediye hepsi heyecan heyecanlı his hissetmek hizmet
+        hoşça kal hoşgeldin hukuk huzur ısınmak ışık ihtiyaç içmek içerik içeride içeriye ilerlemek iletişim
+        imza inanç inanmak indirmek ince incelemek indirim insanlık insanlar insanlarla insanlara insanlardan
+        inşallah iptal iptal etmek işçi işlemek işlemler işlemci işyeri işveren işaret işaretlemek istemek
+        istasyon istifa istiyorum istiyorsun istiyor istiyoruz istedim istediğin istediğiniz İstanbul İzmir
+        izlemek kaç kaçmak kaçıncı kadar kaldı kalem kalın kaldırmak kalmak kan kanun kapalı kapat kapatmak
+        kapı kaplamak karar karar vermek karşı karşılaşmak karşılaştırmak kat katılmak katman katmak kaynak
+        kaydet kaydetmek kayıp kaybolmak kaydetti kazan kazanmak kazanç kaza kelebek kendim kendine kendisi
+        kesinlikle keşke keşfetmek keyif keyifli kıdem kıllı kimlik kiralık kiralamak kirli kişisel kişi kişiler
+        kısım kıta kıyafet klasör kod kodlamak kol kolayca komik komisyon komple kontrol kontrol etmek kontrolcü
+        korumak koşmak kova koymak kredi kritik kulak kullanılıyor kullanılıyor mu kullanıcı kullanıcının kullanım
+        kur kurmak kuruluş kurul kurulmak kurs kurtarmak kurtulmak kusura bakma kuşku kuyruk kuvvetli
+        lazım mı lider liderlik liste listelemek lokanta lüks makale mal malzeme mantıklı market masraf
+        mektup memnun memnuniyet merkez merkezî mesai meslek meşgul meşgulüm meşgulsün metre miktar milyon
+        mümkün müdür müzik müzisyen naber nakit nakliye nasılca nasip neyse net netice nişan numara
+        oda odak odaklanmak ofis oğlan oğlum ok okula okuldan okulda okumak okuyor olmak onay onaylamak
+        ondan sonra onlara onları onuncu onur operasyon operatör ortak ortaklık ortam otel otomasyon otomatik
+        otur oturmak oyun oyuncu oynama oynamak ödeme ödemek ödev öyleyse öğret öğretmek öğretmen öğretmenim
+        ömür önemli önemsemek öneri önermek örnekler özet özetlemek paket paketlemek paketleme para para birimi
+        parmak parça parlamak paylaşım paylaşmak patlamak pay ödeme personel performans perşembe pişirmek planlamak
+        platform polis politika popüler portre pozisyon pratik profesyonel proje projesi proje yönetimi psikoloji
+        radyo rapor raporlama raporlamak randevu rastlamak rahatlamak reddetmek rehber reklam resmi olarak
+        risk riskli robot rol rota ruh ruhsal ruhsat sabit sabitlemek sabretmek saç sağ sağlamak sağlık
+        sahip sahip olmak saklamak sakıncalı sakin sakinleşmek salı sanal sanayi sanat sanatçı say sayfa
+        saygı saygılı saymak sayısı sayısal sebze seç seçmek seçim seçeneği sefer sevgili sevinç sevinmek
+        servisçi ses sesli sessizlik set seyahat seyretmek sıcak sıcaklık sık sıkışık sıkıntı simge simit
+        sistem sistemli sistemler site sohbet soğuk soğutmak sokak son sonbahar sonradan sonuçlanmak sorabilmek
+        soracak soran sordum sormak sorumlu sorumluluk sosyal sosyal medya sözlük söyleyeceğim söylemek
+        spor sporcu standart staj stajyer strateji stres süper süre sürmek sürüm süs süzmek şaka şans
+        şart şartlar şef şeker şehirler şifre şişe şişirmek şirket şirketler şirketin şubat tabak takip
+        takipçi takip etmek takılmak taksit takvim tamir tamir etmek tanı tanım tanımak tanışmak tanıtım
+        tanıtmak tartışmak tasarım tasarlamak taş taşımak taşınmak tavuk teknik teknoloji teklif teklif etmek
+        telefoncu temelinde temizlemek tercih etmek terfi teşekkür etmek test test etmek tespit tespit etmek
+        teslim teslimat teslim etmek tesis tesisat tezgah ticaret tarihî toplantı toplamak toplum toparlamak
+        toplam toplamda trafik tren tuhaf tur turizm tutmak tuvalet türkiye tüyü tıklamak tıklama
+        uç uçak uçmak ulaşım uluslararası unutma unutulmak uygulama uygulamak uzman uzmanlık uygunluk
+        ulaşılabilir ücret ücretli ücretsiz üret üretim üretmek üretici ürün ürünler ürünün üretim
+        üşümek üzgün üzülmek vade vaka vakit valiz vatandaş vazgeçmek vazgeçtim vergi vermek versiyon
+        verimli veri tabanı ziyaret ziyaretçi ziyaret etmek zayıf zahmet zahmetli zaman zamanlar zam yapmak
+        zamlı zarf zarar zararlı zayıflamak zevk zevkli zihin zihinsel zincir zorlanmak zorunlu zorunluluk
     """.trimIndent().lowercase(Locale("tr", "TR"))
         .split(Regex("\\s+")).filter { it.isNotBlank() }.distinct()
 
