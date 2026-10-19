@@ -37,8 +37,9 @@ internal class TurkishPredictionEngine(context: Context) {
     fun suggestions(prefix: String, previousWord: String, limit: Int = 3): List<String> {
         val p = prefix.lowercase(Locale("tr", "TR"))
         val previous = previousWord.lowercase(Locale("tr", "TR"))
-        val learnedWords = prefs.getString("learned_words", "").orEmpty()
-            .split('\u001F').filter { it.isNotBlank() }
+        val learningEnabled = prefs.getBoolean("personal_learning", true)
+        val learnedWords = if (learningEnabled) prefs.getString("learned_words", "").orEmpty()
+            .split('\u001F').filter { it.isNotBlank() } else emptyList()
         val personal = learnedWords.distinct()
         val contextual = contextWords(previous)
         val candidates = (contextual + personal + commonWords).distinct()
@@ -55,6 +56,7 @@ internal class TurkishPredictionEngine(context: Context) {
 
     fun learnTypedText(text: String, previousWord: String) {
         val clean = text.lowercase(Locale("tr", "TR"))
+        if (!prefs.getBoolean("personal_learning", true)) return
         if (clean.isBlank() || clean.any { it.isDigit() } || clean.length > 40) return
         val existing = prefs.getString("learned_words", "").orEmpty()
             .split('\u001F').filter { it.isNotBlank() }.toMutableList()
@@ -98,6 +100,9 @@ internal class TurkishPredictionEngine(context: Context) {
         if (prefix.isNotEmpty()) value += 100 - (word.length - prefix.length).coerceAtLeast(0)
         if (word in contextual) value += 80
         if (word in personal) value += 35
+        if (previous.isNotBlank()) {
+            value += prefs.getInt("pair:" + previous + ">" + word, 0).coerceAtMost(100) * 3
+        }
         value += when (word) {
             "bir", "ve", "bu", "da", "de", "için", "çok", "ben", "sen", "ne", "mi", "mı", "ama", "gibi" -> 15
             else -> 0
