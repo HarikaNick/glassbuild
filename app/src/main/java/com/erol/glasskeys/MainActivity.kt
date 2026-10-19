@@ -70,7 +70,7 @@ class MainActivity : Activity() {
         root.addView(labelRow("Tuş saydamlığı", opacityLabel).apply { setPadding(0, dp(18), 0, 0) })
         root.addView(SeekBar(this).apply {
             max = 65
-            progress = (prefs.getInt("opacity", 92) - 35).coerceIn(0, 65)
+            progress = (prefs.getInt("opacity", 60) - 35).coerceIn(0, 65)
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar?, p: Int, user: Boolean) {
                     val v = p + 35
@@ -151,7 +151,7 @@ class MainActivity : Activity() {
             })
         }, LinearLayout.LayoutParams(-1, dp(42)))
         heightLabel.text = "${prefs.getInt("keyboard_height", 42)} dp · Standart"
-        opacityLabel.text = "${prefs.getInt("opacity", 92)}%"
+        opacityLabel.text = "${prefs.getInt("opacity", 60)}%"
         roundnessLabel.text = "${prefs.getInt("roundness", 9)} / 18"
         root.addView(Switch(this).apply {
             text = "Hafif tuş titreşimi"
@@ -284,7 +284,7 @@ class MainActivity : Activity() {
         val mode = prefs.getString("theme", "system") ?: "system"
         val dark = mode == "dark" || (mode == "system" &&
             (resources.configuration.uiMode and 0x30) == 0x20)
-        val opacity = prefs.getInt("opacity", 92)
+        val opacity = prefs.getInt("opacity", 60)
         preview.setTextColor(if (dark) Color.WHITE else ink)
         preview.background = card(
             if (dark) Color.argb((opacity * 2.35f).toInt().coerceIn(80, 235), 43, 46, 54)
