@@ -3,6 +3,14 @@ package com.erol.glasskeys
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.LinearGradient
+import android.graphics.Shader
+import android.graphics.ColorFilter
+import android.graphics.PixelFormat
+import android.graphics.drawable.Drawable
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
@@ -115,18 +123,27 @@ class GlassKeyboardService : InputMethodService() {
 
     private fun configureGlassWindow() {
         val w = window?.window ?: return
-        // Do not blur the entire app behind the keyboard. Glass is rendered by
-        // the keyboard's own translucent surfaces, not a window-wide blur flag.
         w.setBackgroundDrawableResource(android.R.color.transparent)
-        w.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
         w.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             try {
+                val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+                val blurAvailable = wm.isCrossWindowBlurEnabled
                 w.attributes = w.attributes.apply {
-                    blurBehindRadius = 0
                     dimAmount = 0f
+                    if (blurAvailable) {
+                        flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                        blurBehindRadius = dp(22)
+                    } else {
+                        flags = flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+                        blurBehindRadius = 0
+                    }
                 }
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+                w.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+            }
+        } else {
+            w.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
         }
     }
 
@@ -549,20 +566,26 @@ class GlassKeyboardService : InputMethodService() {
         else -> "↵"
     }
 
-    private fun panelBackground(): GradientDrawable {
+    private fun panelBackground(): Drawable {
         val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val opacity = prefs.getInt("opacity", 92).coerceIn(35, 100)
+        // Default to 60% opacity for the requested frosted-glass appearance.
+        val opacity = prefs.getInt("opacity", 60).coerceIn(35, 100)
         val alpha = (opacity * 2.55f).roundToInt().coerceIn(90, 255)
-        val rgb = if (isDark()) intArrayOf(28, 28, 30) else intArrayOf(209, 213, 219)
-        val backgroundColor = Color.argb(alpha, rgb[0], rgb[1], rgb[2])
-        return GradientDrawable().apply {
-            setColor(backgroundColor)
-            cornerRadius = dp(18).toFloat()
-            setStroke(dp(1), if (isDark()) 0x22FFFFFF else 0x18000000)
-        }
+        val base = if (isDark()) Color.rgb(24, 25, 30) else Color.rgb(226, 232, 240)
+        val fill = Color.argb(alpha, Color.red(base), Color.green(base), Color.blue(base))
+        val top = blend(fill, Color.WHITE, if (isDark()) 0.10f else 0.22f)
+        val bottom = blend(fill, if (isDark()) Color.BLACK else Color.rgb(190, 202, 220), 0.12f)
+        return GlassSurfaceDrawable(
+            topColor = top,
+            bottomColor = bottom,
+            cornerRadius = dp(18).toFloat(),
+            strokeWidth = dp(1).toFloat(),
+            strokeTop = 0xA8FFFFFF.toInt(),
+            strokeBottom = if (isDark()) 0x28FFFFFF else 0x48FFFFFF
+        )
     }
 
-    private fun keyBackground(special: Boolean, accent: Boolean): GradientDrawable {
+    private fun keyBackground(special: Boolean, accent: Boolean): Drawable {
         val radius = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getInt("roundness", 6).coerceIn(5, 7)
         val color = when {
@@ -572,17 +595,28 @@ class GlassKeyboardService : InputMethodService() {
             special -> Color.rgb(173, 179, 188)
             else -> Color.WHITE
         }
-        // Keep the key faces clean and mostly opaque, while honoring the user's
-        // translucency control instead of applying it to the panel alone.
         val opacity = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getInt("opacity", 92).coerceIn(35, 100)
+            .getInt("opacity", 60).coerceIn(35, 100)
         val alpha = (opacity * 2.55f).roundToInt().coerceIn(90, 255)
         val fill = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
-        return GradientDrawable().apply {
-            setColor(fill)
-            cornerRadius = dp(radius).toFloat()
-            setStroke(dp(1), if (isDark()) 0x0DFFFFFF else 0x14000000)
-        }
+        val top = blend(fill, Color.WHITE, if (accent) 0.20f else 0.12f)
+        val bottom = blend(fill, if (isDark()) Color.BLACK else Color.rgb(210, 218, 230), 0.08f)
+        return GlassSurfaceDrawable(
+            topColor = top,
+            bottomColor = bottom,
+            cornerRadius = dp(radius).toFloat(),
+            strokeWidth = dp(1).toFloat(),
+            strokeTop = if (accent) 0xBFFFFFFF.toInt() else 0xA6FFFFFF.toInt(),
+            strokeBottom = if (isDark()) 0x24FFFFFF else 0x55FFFFFF
+        )
+    }
+
+    private fun blend(color: Int, overlay: Int, amount: Float): Int {
+        val a = Color.alpha(color)
+        val r = (Color.red(color) * (1f - amount) + Color.red(overlay) * amount).roundToInt()
+        val g = (Color.green(color) * (1f - amount) + Color.green(overlay) * amount).roundToInt()
+        val b = (Color.blue(color) * (1f - amount) + Color.blue(overlay) * amount).roundToInt()
+        return Color.argb(a, r, g, b)
     }
 
     private fun foreground() = if (isDark()) Color.WHITE else Color.rgb(31, 36, 45)
@@ -626,4 +660,52 @@ class GlassKeyboardService : InputMethodService() {
     companion object {
         private const val PREFS = "glass_keys_prefs"
     }
+}
+
+/** Lightweight glass surface: translucent gradient fill with a 1dp gradient rim. */
+private class GlassSurfaceDrawable(
+    private val topColor: Int,
+    private val bottomColor: Int,
+    private val cornerRadius: Float,
+    private val strokeWidth: Float,
+    private val strokeTop: Int,
+    private val strokeBottom: Int
+) : Drawable() {
+    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = this@GlassSurfaceDrawable.strokeWidth
+    }
+    private val rect = RectF()
+
+    override fun draw(canvas: Canvas) {
+        val b = bounds
+        val inset = strokeWidth / 2f
+        rect.set(b.left + inset, b.top + inset, b.right - inset, b.bottom - inset)
+        fillPaint.shader = LinearGradient(
+            0f, rect.top, 0f, rect.bottom,
+            topColor, bottomColor, Shader.TileMode.CLAMP
+        )
+        strokePaint.shader = LinearGradient(
+            0f, rect.top, 0f, rect.bottom,
+            strokeTop, strokeBottom, Shader.TileMode.CLAMP
+        )
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, fillPaint)
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, strokePaint)
+    }
+
+    override fun setAlpha(alpha: Int) {
+        fillPaint.alpha = alpha
+        strokePaint.alpha = alpha
+        invalidateSelf()
+    }
+
+    override fun setColorFilter(colorFilter: ColorFilter?) {
+        fillPaint.colorFilter = colorFilter
+        strokePaint.colorFilter = colorFilter
+        invalidateSelf()
+    }
+
+    @Deprecated("Deprecated in Android")
+    override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
 }
