@@ -161,7 +161,7 @@ class MainActivity : Activity() {
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Kişisel kelimeler (\u0024{words.size})")
+            .setTitle("Kişisel kelimeler (" + words.size + ")")
             .setItems(words.toTypedArray()) { _, index ->
                 val selected = words[index]
                 AlertDialog.Builder(this)
