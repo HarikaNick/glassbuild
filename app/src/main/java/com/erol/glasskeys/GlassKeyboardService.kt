@@ -139,7 +139,7 @@ class GlassKeyboardService : InputMethodService() {
             InputType.TYPE_TEXT_VARIATION_URI
         )
         val appDisablesSuggestions = (type and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0
-        passwordInput = isPassword
+        passwordInput = isPassword || appDisablesSuggestions
         learningAllowed = !isPassword && !isPrivateText && !appDisablesSuggestions
         numericInput = cls == InputType.TYPE_CLASS_NUMBER || cls == InputType.TYPE_CLASS_PHONE
         if (!restartingShift(info) && !capsLock) {
