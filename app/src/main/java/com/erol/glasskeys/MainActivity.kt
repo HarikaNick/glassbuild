@@ -1,6 +1,7 @@
 package com.erol.glasskeys
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -125,6 +126,9 @@ class MainActivity : Activity() {
             languagePrefs.edit().clear().putBoolean("personal_learning", enabled).apply()
             android.widget.Toast.makeText(this, "Kişisel kelime belleği temizlendi", android.widget.Toast.LENGTH_SHORT).show()
         }, LinearLayout.LayoutParams(-1, dp(48)).apply { bottomMargin = dp(10) })
+        root.addView(button("Kişisel kelimeleri görüntüle / tek tek sil") {
+            showLearnedWordsDialog()
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { bottomMargin = dp(10) })
         section("KURULUM")
         root.addView(button("Klavyeyi etkinleştir") {
             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
@@ -141,6 +145,47 @@ class MainActivity : Activity() {
         setContentView(scroll)
         updatePreview()
         updateThemeButtons(themeRow)
+    }
+
+    private fun showLearnedWordsDialog() {
+        val languagePrefs = getSharedPreferences("glass_keys_language", Context.MODE_PRIVATE)
+        val words = languagePrefs.getString("learned_words", "").orEmpty()
+            .split('\u001F')
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sortedWith(String.CASE_INSENSITIVE_ORDER)
+
+        if (words.isEmpty()) {
+            android.widget.Toast.makeText(this, "Kişisel sözlükte henüz kelime yok", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Kişisel kelimeler (\u0024{words.size})")
+            .setItems(words.toTypedArray()) { _, index ->
+                val selected = words[index]
+                AlertDialog.Builder(this)
+                    .setTitle("Kelimeyi sil?")
+                    .setMessage("\"$selected\" kişisel sözlükten ve öneri belleğinden silinsin mi?")
+                    .setNegativeButton("Vazgeç", null)
+                    .setPositiveButton("Sil") { _, _ ->
+                        val current = languagePrefs.getString("learned_words", "").orEmpty()
+                            .split('\u001F')
+                            .filter { it.isNotBlank() && !it.equals(selected, ignoreCase = true) }
+                        val editor = languagePrefs.edit()
+                            .putString("learned_words", current.joinToString("\u001F"))
+                        languagePrefs.all.keys.filter { key ->
+                            key.startsWith("pair:") &&
+                                (key.substringAfter('>').equals(selected, ignoreCase = true) ||
+                                 key.substringAfter(':').substringBefore('>').equals(selected, ignoreCase = true))
+                        }.forEach { editor.remove(it) }
+                        editor.apply()
+                        android.widget.Toast.makeText(this, "Kelime silindi", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    .show()
+            }
+            .setNegativeButton("Kapat", null)
+            .show()
     }
 
     private fun section(label: String) {
