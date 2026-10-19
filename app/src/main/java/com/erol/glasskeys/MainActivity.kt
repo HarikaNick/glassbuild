@@ -105,6 +105,21 @@ class MainActivity : Activity() {
             textSize = 12f
             setTextColor(muted)
         })
+        val spacingLabel = TextView(this).apply { setTextColor(ink); textSize = 14f }
+        root.addView(labelRow("Tuşlar arası boşluk", spacingLabel).apply { setPadding(0, dp(8), 0, 0) })
+        root.addView(SeekBar(this).apply {
+            max = 5
+            progress = prefs.getInt("key_spacing", 2).coerceIn(0, 5)
+            spacingLabel.text = "${progress} dp"
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, user: Boolean) {
+                    spacingLabel.text = "$p dp"
+                    if (user) prefs.edit().putInt("key_spacing", p).apply()
+                }
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) {}
+            })
+        }, LinearLayout.LayoutParams(-1, dp(42)))
         roundnessLabel = TextView(this).apply { setTextColor(ink); textSize = 14f }
         root.addView(labelRow("Tuş yuvarlaklığı", roundnessLabel).apply { setPadding(0, dp(8), 0, 0) })
         root.addView(SeekBar(this).apply {
