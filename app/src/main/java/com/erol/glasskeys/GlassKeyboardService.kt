@@ -33,6 +33,7 @@ class GlassKeyboardService : InputMethodService() {
     private var numericInput = false
     private var suggestionsRow: LinearLayout? = null
     private var lastSuggestions = emptyList<String>()
+    private val predictor by lazy { TurkishPredictionEngine(this) }
 
     private val letterRows = listOf(
         listOf("q","w","e","r","t","y","u","ı","o","p","ğ","ü"),
@@ -335,13 +336,12 @@ class GlassKeyboardService : InputMethodService() {
     private fun refreshSuggestions() {
         val row = suggestionsRow ?: return
         if (!::panel.isInitialized || passwordInput || emojiMode) return
-        val before = currentInputConnection?.getTextBeforeCursor(80, 0)?.toString().orEmpty()
+        val before = currentInputConnection?.getTextBeforeCursor(120, 0)?.toString().orEmpty()
         val prefix = Regex("[\\p{L}\\p{M}]+$").find(before)?.value.orEmpty()
-        val words = if (prefix.length < 2) emptyList() else dictionary
-            .filter { it.startsWith(prefix.lowercase(Locale("tr", "TR"))) && !it.equals(prefix, true) }
-            .sortedBy { it.length }
-            .take(3)
-        val display = if (prefix.isBlank()) listOf(" ", " ", " ") else listOf(prefix) + words
+        val beforePrefix = if (prefix.isNotEmpty()) before.dropLast(prefix.length) else before
+        val previousWord = Regex("[\\p{L}\\p{M}]+$").find(beforePrefix.trimEnd())?.value.orEmpty()
+        val candidates = predictor.suggestions(prefix, previousWord, 3)
+        val display = if (prefix.isBlank()) candidates.ifEmpty { listOf(" ", " ", " ") } else listOf(prefix) + candidates.filterNot { it.equals(prefix, true) }
         val finalWords = display.take(3)
         if (finalWords == lastSuggestions && row.childCount == finalWords.size) return
         lastSuggestions = finalWords
@@ -376,7 +376,16 @@ class GlassKeyboardService : InputMethodService() {
         if (shift && !symbols) key.uppercase(Locale("tr", "TR")) else key
 
     private fun commit(text: String) {
-        currentInputConnection?.commitText(text, 1)
+        val ic = currentInputConnection
+        if (text == " " && !passwordInput) {
+            val before = ic?.getTextBeforeCursor(120, 0)?.toString().orEmpty()
+            val currentWord = Regex("[\\p{L}\\p{M}'’-]+$").find(before)?.value.orEmpty()
+            val previousWord = Regex("[\\p{L}\\p{M}'’-]+$").find(
+                before.dropLast(currentWord.length).trimEnd()
+            )?.value.orEmpty()
+            if (currentWord.isNotBlank()) predictor.learnTypedText(currentWord, previousWord)
+        }
+        ic?.commitText(text, 1)
         lastSuggestions = emptyList()
         refreshSuggestions()
     }
