@@ -6,9 +6,12 @@ package com.erol.glasskeys
  */
 internal object TurkishPrefixMatcher {
     fun hasSingleEditPrefixMatch(candidate: String, prefix: String): Boolean {
+        if (candidate.isEmpty() || prefix.isEmpty()) return false
+
         val minLength = (prefix.length - 1).coerceAtLeast(1)
         val maxLength = (prefix.length + 1).coerceAtMost(candidate.length)
         if (minLength > maxLength) return false
+
         for (length in minLength..maxLength) {
             if (editDistanceAtMostOne(prefix, candidate.take(length))) return true
         }
@@ -18,9 +21,12 @@ internal object TurkishPrefixMatcher {
     fun distanceScore(candidate: String, prefix: String): Int {
         if (prefix.isEmpty()) return 0
         if (candidate.startsWith(prefix)) return 0
+        if (candidate.isEmpty()) return 2
+
         val minLength = (prefix.length - 1).coerceAtLeast(1)
         val maxLength = (prefix.length + 1).coerceAtMost(candidate.length)
         if (minLength > maxLength) return 2
+
         for (length in minLength..maxLength) {
             if (editDistanceAtMostOne(prefix, candidate.take(length))) return 1
         }
@@ -40,11 +46,14 @@ internal object TurkishPrefixMatcher {
                 j++
                 continue
             }
+
             edits++
             if (edits > 1) return false
+
             if (a.length == b.length) {
                 if (i + 1 < a.length && j + 1 < b.length &&
-                    a[i] == b[j + 1] && a[i + 1] == b[j]) {
+                    a[i] == b[j + 1] && a[i + 1] == b[j]
+                ) {
                     i += 2
                     j += 2
                 } else {
@@ -57,6 +66,7 @@ internal object TurkishPrefixMatcher {
                 j++
             }
         }
+
         if (i < a.length || j < b.length) edits++
         return edits <= 1
     }
