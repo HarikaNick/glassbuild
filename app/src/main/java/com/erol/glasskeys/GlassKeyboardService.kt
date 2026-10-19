@@ -106,11 +106,17 @@ class GlassKeyboardService : InputMethodService() {
 
     private fun configureGlassWindow() {
         val w = window?.window ?: return
+        // Do not blur the entire app behind the keyboard. Glass is rendered by
+        // the keyboard's own translucent surfaces, not a window-wide blur flag.
         w.setBackgroundDrawableResource(android.R.color.transparent)
+        w.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+        w.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             try {
-                w.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                w.attributes = w.attributes.apply { blurBehindRadius = dp(32) }
+                w.attributes = w.attributes.apply {
+                    blurBehindRadius = 0
+                    dimAmount = 0f
+                }
             } catch (_: Exception) { }
         }
     }
