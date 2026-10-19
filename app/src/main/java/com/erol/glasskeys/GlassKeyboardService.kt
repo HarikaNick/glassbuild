@@ -429,14 +429,19 @@ class GlassKeyboardService : InputMethodService() {
                 text = word
                 gravity = Gravity.CENTER
                 textSize = 14f
-                setTextColor(foreground())
+                typeface = Typeface.create("sans-serif", if (i == 1) Typeface.MEDIUM else Typeface.NORMAL)
+                setTextColor(if (i == 1 && word.isNotBlank()) {
+                    if (isDark()) Color.rgb(157, 195, 255) else Color.rgb(0, 92, 205)
+                } else foreground())
                 isClickable = word.isNotBlank()
+                isFocusable = word.isNotBlank()
+                contentDescription = if (word.isNotBlank()) "Öneri: $word" else null
                 setOnClickListener { if (word.isNotBlank()) replaceCurrentWord(word) }
             }
             row.addView(cell, LinearLayout.LayoutParams(0, -1, 1f))
             if (i < finalWords.lastIndex) row.addView(View(this).apply {
-                setBackgroundColor(if (isDark()) 0x33FFFFFF else 0x22000000)
-            }, LinearLayout.LayoutParams(dp(1), dp(17)))
+                setBackgroundColor(if (isDark()) 0x26FFFFFF else 0x1F000000)
+            }, LinearLayout.LayoutParams(dp(1), dp(16)))
         }
     }
 
@@ -565,8 +570,14 @@ class GlassKeyboardService : InputMethodService() {
             special -> Color.rgb(173, 179, 188)
             else -> Color.WHITE
         }
+        // Keep the key faces clean and mostly opaque, while honoring the user's
+        // translucency control instead of applying it to the panel alone.
+        val opacity = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getInt("opacity", 92).coerceIn(35, 100)
+        val alpha = (opacity * 2.55f).roundToInt().coerceIn(90, 255)
+        val fill = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
         return GradientDrawable().apply {
-            setColor(color)
+            setColor(fill)
             cornerRadius = dp(radius).toFloat()
             setStroke(dp(1), if (isDark()) 0x0DFFFFFF else 0x14000000)
         }
