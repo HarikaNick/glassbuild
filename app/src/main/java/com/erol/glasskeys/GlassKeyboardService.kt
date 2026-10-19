@@ -7,10 +7,13 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.text.InputType
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -34,6 +37,9 @@ class GlassKeyboardService : InputMethodService() {
     private var numericInput = false
     private var suggestionsRow: LinearLayout? = null
     private var lastSuggestions = emptyList<String>()
+    private val backspaceHandler = Handler(Looper.getMainLooper())
+    private var backspaceRepeater: Runnable? = null
+    private var keyPreviewPopup: PopupWindow? = null
     private val predictor by lazy { TurkishPredictionEngine(this) }
 
     private val letterRows = listOf(
@@ -262,6 +268,51 @@ class GlassKeyboardService : InputMethodService() {
         }
     }
 
+    private fun showKeyPreview(anchor: View, label: String) {
+        if (label.length != 1 || !label[0].isLetter()) return
+        keyPreviewPopup?.dismiss()
+        val preview = TextView(this).apply {
+            text = label
+            gravity = Gravity.CENTER
+            textSize = 32f
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            setTextColor(if (isDark()) Color.WHITE else Color.rgb(25, 28, 34))
+            background = GradientDrawable().apply {
+                setColor(if (isDark()) Color.rgb(58, 58, 60) else Color.WHITE)
+                cornerRadius = dp(10).toFloat()
+                setStroke(dp(1), if (isDark()) 0x66FFFFFF else 0x22000000)
+            }
+        }
+        val popup = PopupWindow(preview, dp(48), dp(54), false).apply {
+            isClippingEnabled = true
+            elevation = dp(8).toFloat()
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        }
+        keyPreviewPopup = popup
+        try {
+            popup.showAsDropDown(anchor, (anchor.width - dp(48)) / 2, -anchor.height - dp(57))
+        } catch (_: Exception) {
+            keyPreviewPopup = null
+        }
+    }
+
+    private fun stopBackspaceRepeat() {
+        backspaceRepeater?.let(backspaceHandler::removeCallbacks)
+        backspaceRepeater = null
+    }
+
+    private fun startBackspaceRepeat() {
+        stopBackspaceRepeat()
+        val repeat = object : Runnable {
+            override fun run() {
+                deleteOne()
+                backspaceHandler.postDelayed(this, 55L)
+            }
+        }
+        backspaceRepeater = repeat
+        backspaceHandler.postDelayed(repeat, 380L)
+    }
+
     private fun keyView(
         label: String,
         special: Boolean,
@@ -274,7 +325,7 @@ class GlassKeyboardService : InputMethodService() {
         textSize = size
         typeface = Typeface.create("sans-serif", if (special) Typeface.BOLD else Typeface.NORMAL)
         setTextColor(foreground())
-        background = keyBackground(special, accent)
+        background = keyBackground(special, accent || label == actionLabel() && label in listOf("Git", "Ara", "Gönder", "İleri", "Bitti"))
         isClickable = true
         isFocusable = true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -290,8 +341,16 @@ class GlassKeyboardService : InputMethodService() {
         }
         setOnTouchListener { v, event ->
             when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> v.animate().scaleX(0.94f).scaleY(0.92f).setDuration(65).start()
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> v.animate().scaleX(1f).scaleY(1f).setDuration(100).start()
+                MotionEvent.ACTION_DOWN -> {
+                    v.animate().scaleX(0.94f).scaleY(0.92f).setDuration(65).start()
+                    if (label == "⌫") startBackspaceRepeat() else showKeyPreview(v, label)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    v.animate().scaleX(1f).scaleY(1f).setDuration(100).start()
+                    if (label == "⌫") stopBackspaceRepeat()
+                    keyPreviewPopup?.dismiss()
+                    keyPreviewPopup = null
+                }
             }
             false
         }
@@ -300,7 +359,7 @@ class GlassKeyboardService : InputMethodService() {
             action()
         }
         val alternatives = alternativesFor(label)
-        if (alternatives.size > 1) {
+        if (label != "⌫" && alternatives.size > 1) {
             setOnLongClickListener {
                 showAlternatives(this, alternatives)
                 true
