@@ -17,6 +17,7 @@ import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.TextView
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -284,6 +285,51 @@ class GlassKeyboardService : InputMethodService() {
             tapFeedback()
             action()
         }
+        val alternatives = alternativesFor(label)
+        if (alternatives.size > 1) {
+            setOnLongClickListener {
+                showAlternatives(this, alternatives)
+                true
+            }
+        }
+    }
+
+    private fun alternativesFor(label: String): List<String> {
+        val lower = label.lowercase(Locale("tr", "TR"))
+        val variants = when (lower) {
+            "a" -> listOf("a", "â", "á", "à")
+            "c" -> listOf("c", "ç", "ć")
+            "g" -> listOf("g", "ğ")
+            "i" -> listOf("i", "ı", "î")
+            "o" -> listOf("o", "ö", "ô")
+            "s" -> listOf("s", "ş")
+            "u" -> listOf("u", "ü", "û")
+            else -> return emptyList()
+        }
+        return if (label.firstOrNull()?.isUpperCase() == true)
+            variants.map { it.uppercase(Locale("tr", "TR")) } else variants
+    }
+
+    private fun showAlternatives(anchor: View, variants: List<String>) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(5), dp(5), dp(5), dp(5))
+            background = panelBackground()
+        }
+        val popup = PopupWindow(row, -2, dp(52), true).apply {
+            isOutsideTouchable = true
+            elevation = dp(12).toFloat()
+            setBackgroundDrawable(panelBackground())
+        }
+        variants.distinct().forEach { character ->
+            row.addView(keyView(character, false, 20f) {
+                commit(character)
+                popup.dismiss()
+            }, LinearLayout.LayoutParams(dp(42), dp(42)).apply {
+                setMargins(dp(2), 0, dp(2), 0)
+            })
+        }
+        popup.showAsDropDown(anchor, 0, -anchor.height - dp(58))
     }
 
     private fun refreshSuggestions() {
