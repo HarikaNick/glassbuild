@@ -399,6 +399,13 @@ class GlassKeyboardService : InputMethodService() {
             if (currentWord.isNotBlank()) predictor.learnTypedText(currentWord, previousWord)
         }
         ic?.commitText(text, 1)
+        if (text == " " && !passwordInput && !capsLock && !symbols) {
+            val before = ic?.getTextBeforeCursor(8, 0)?.toString().orEmpty()
+            if (Regex("[.!?][\\\\s]*$").containsMatchIn(before)) {
+                shift = true
+                rebuildKeyboard()
+            }
+        }
         lastSuggestions = emptyList()
         refreshSuggestions()
     }
