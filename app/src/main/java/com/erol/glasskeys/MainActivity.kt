@@ -108,6 +108,23 @@ class MainActivity : Activity() {
             isChecked = prefs.getBoolean("number_row", false)
             setOnCheckedChangeListener { _, checked -> prefs.edit().putBoolean("number_row", checked).apply() }
         }, LinearLayout.LayoutParams(-1, dp(52)))
+        section("TÜRKÇE TAHMİN VE BELLEK")
+        root.addView(Switch(this).apply {
+            text = "Yazdıklarımdan öğren"
+            setTextColor(ink)
+            isChecked = getSharedPreferences("glass_keys_language", Context.MODE_PRIVATE)
+                .getBoolean("personal_learning", true)
+            setOnCheckedChangeListener { _, checked ->
+                getSharedPreferences("glass_keys_language", Context.MODE_PRIVATE)
+                    .edit().putBoolean("personal_learning", checked).apply()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(52)))
+        root.addView(button("Öğrenilen kelime belleğini temizle") {
+            val languagePrefs = getSharedPreferences("glass_keys_language", Context.MODE_PRIVATE)
+            val enabled = languagePrefs.getBoolean("personal_learning", true)
+            languagePrefs.edit().clear().putBoolean("personal_learning", enabled).apply()
+            android.widget.Toast.makeText(this, "Kişisel kelime belleği temizlendi", android.widget.Toast.LENGTH_SHORT).show()
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { bottomMargin = dp(10) })
         section("KURULUM")
         root.addView(button("Klavyeyi etkinleştir") {
             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
