@@ -145,27 +145,21 @@ class GlassKeyboardService : InputMethodService() {
     private fun configureGlassWindow() {
         val w = window?.window ?: return
         w.setBackgroundDrawableResource(android.R.color.transparent)
-        w.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+
+        // Do not enable FLAG_BLUR_BEHIND here. Android applies this blur to the
+        // window *behind the IME*, which can blur the entire app/screen rather
+        // than just the keyboard surface. The keyboard draws its own glass-like
+        // translucent gradients and highlights in GlassSurfaceDrawable.
+        w.clearFlags(
+            WindowManager.LayoutParams.FLAG_DIM_BEHIND or
+                WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+        )
+        val params = w.attributes
+        params.dimAmount = 0f
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            try {
-                val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-                val blurAvailable = wm.isCrossWindowBlurEnabled
-                w.attributes = w.attributes.apply {
-                    dimAmount = 0f
-                    if (blurAvailable) {
-                        flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                        blurBehindRadius = dp(22)
-                    } else {
-                        flags = flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
-                        blurBehindRadius = 0
-                    }
-                }
-            } catch (_: Exception) {
-                w.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-            }
-        } else {
-            w.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+            params.blurBehindRadius = 0
         }
+        w.attributes = params
     }
 
     private fun configureForInput(info: EditorInfo?) {
@@ -668,7 +662,7 @@ class GlassKeyboardService : InputMethodService() {
     private fun panelBackground(): Drawable {
         val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         // Default to 60% opacity for the requested frosted-glass appearance.
-        val opacity = prefs.getInt("opacity", 60).coerceIn(35, 100)
+        val opacity = prefs.getInt("opacity", 72).coerceIn(35, 100)
         val alpha = (opacity * 2.55f).roundToInt().coerceIn(90, 255)
         val base = if (isDark()) Color.rgb(24, 25, 30) else Color.rgb(226, 232, 240)
         val fill = Color.argb(alpha, Color.red(base), Color.green(base), Color.blue(base))
@@ -817,7 +811,7 @@ private class GlassSurfaceDrawable(
         // Fine upper rim catches light like a thin sheet of glass.
         shinePaint.shader = LinearGradient(
             rect.left, rect.top, rect.right, rect.top + rect.height() * 0.34f,
-            intArrayOf(0x00FFFFFF, 0x55FFFFFF, 0x00FFFFFF),
+            intArrayOf(0x00FFFFFF, 0x88FFFFFF.toInt(), 0x00FFFFFF),
             floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP
         )
         canvas.save()
@@ -830,7 +824,7 @@ private class GlassSurfaceDrawable(
             shinePaint.shader = RadialGradient(
                 rect.centerX(), rect.top + rect.height() * 0.18f,
                 rect.width() * 0.85f,
-                intArrayOf(0x66FFFFFF, 0x22FFFFFF, 0x00FFFFFF),
+                intArrayOf(0x88FFFFFF.toInt(), 0x38FFFFFF, 0x00FFFFFF),
                 floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP
             )
             canvas.drawRoundRect(rect, cornerRadius, cornerRadius, shinePaint)
