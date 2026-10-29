@@ -66,6 +66,24 @@ class MainActivity : Activity() {
             }, LinearLayout.LayoutParams(0, dp(48), 1f).apply { if (value != "system") marginStart = dp(8) })
         }
         root.addView(themeRow)
+        section("CAM VURGUSU")
+        val accentRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        listOf(
+            "Mavi" to "blue",
+            "Mor" to "purple",
+            "Yeşil" to "green",
+            "Pembe" to "pink",
+            "Turuncu" to "orange"
+        ).forEach { (label, value) ->
+            accentRow.addView(button(label) {
+                prefs.edit().putString("accent_theme", value).apply()
+                updatePreview()
+                android.widget.Toast.makeText(this, "$label cam vurgusu seçildi", android.widget.Toast.LENGTH_SHORT).show()
+            }, LinearLayout.LayoutParams(0, dp(44), 1f).apply {
+                if (value != "blue") marginStart = dp(5)
+            })
+        }
+        root.addView(accentRow)
         opacityLabel = TextView(this).apply { setTextColor(ink); textSize = 14f }
         root.addView(labelRow("Tuş saydamlığı", opacityLabel).apply { setPadding(0, dp(18), 0, 0) })
         root.addView(SeekBar(this).apply {
