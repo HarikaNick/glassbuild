@@ -520,9 +520,9 @@ class GlassKeyboardService : InputMethodService() {
         if (index < 0) return null
 
         val before = currentInputConnection?.getTextBeforeCursor(120, 0)?.toString().orEmpty()
-        val prefix = Regex("[\\\\p{L}\\\\p{M}]+$").find(before)?.value.orEmpty()
+        val prefix = Regex("[\\p{L}\\p{M}]+$").find(before)?.value.orEmpty()
         val beforePrefix = if (prefix.isNotEmpty()) before.dropLast(prefix.length) else before
-        val previousWord = Regex("[\\\\p{L}\\\\p{M}]+$").find(beforePrefix.trimEnd())?.value.orEmpty()
+        val previousWord = Regex("[\\p{L}\\p{M}]+$").find(beforePrefix.trimEnd())?.value.orEmpty()
         val predicted = predictor.suggestions(prefix, previousWord, 12)
         if (predicted.isEmpty()) return null
 
