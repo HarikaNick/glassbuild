@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.RadialGradient
 import android.graphics.LinearGradient
 import android.graphics.Shader
 import android.graphics.ColorFilter
@@ -104,6 +105,22 @@ class GlassKeyboardService : InputMethodService() {
         super.onWindowShown()
         configureGlassWindow()
         rebuildKeyboard()
+    }
+
+    override fun onFinishInputView(finishingInput: Boolean) {
+        stopBackspaceRepeat()
+        keyPreviewPopup?.dismiss()
+        keyPreviewPopup = null
+        pendingCorrectionSource = null
+        pendingCorrectedLetter = null
+        super.onFinishInputView(finishingInput)
+    }
+
+    override fun onDestroy() {
+        stopBackspaceRepeat()
+        keyPreviewPopup?.dismiss()
+        keyPreviewPopup = null
+        super.onDestroy()
     }
 
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
@@ -371,10 +388,12 @@ class GlassKeyboardService : InputMethodService() {
                 MotionEvent.ACTION_DOWN -> {
                     pendingCorrectionSource = null
                     pendingCorrectedLetter = null
+                    v.animate().cancel()
                     v.animate().scaleX(0.94f).scaleY(0.92f).setDuration(65).start()
                     if (label == "⌫") startBackspaceRepeat() else showKeyPreview(v, label)
                 }
                 MotionEvent.ACTION_UP -> {
+                    v.animate().cancel()
                     if (label.length == 1 && label[0].isLetter()) {
                         pendingCorrectionSource = label.lowercase(Locale("tr", "TR"))
                         pendingCorrectedLetter = correctedNeighborForTap(label, event.x, v.width)
@@ -387,6 +406,7 @@ class GlassKeyboardService : InputMethodService() {
                 MotionEvent.ACTION_CANCEL -> {
                     pendingCorrectionSource = null
                     pendingCorrectedLetter = null
+                    v.animate().cancel()
                     v.animate().scaleX(1f).scaleY(1f).setDuration(100).start()
                     if (label == "⌫") stopBackspaceRepeat()
                     keyPreviewPopup?.dismiss()
@@ -523,6 +543,9 @@ class GlassKeyboardService : InputMethodService() {
         val prefix = Regex("[\\p{L}\\p{M}]+$").find(before)?.value.orEmpty()
         val beforePrefix = if (prefix.isNotEmpty()) before.dropLast(prefix.length) else before
         val previousWord = Regex("[\\p{L}\\p{M}]+$").find(beforePrefix.trimEnd())?.value.orEmpty()
+        // Never rewrite the first character of a word: without a typed prefix,
+        // the model has no evidence about what the user intended.
+        if (prefix.isEmpty()) return null
         val predicted = predictor.suggestions(prefix, previousWord, 12)
         if (predicted.isEmpty()) return null
 
@@ -752,33 +775,80 @@ private class GlassSurfaceDrawable(
         style = Paint.Style.STROKE
         strokeWidth = this@GlassSurfaceDrawable.strokeWidth
     }
+    private val shinePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
+    private var pressed = false
+
+    override fun isStateful(): Boolean = true
+
+    override fun onStateChange(state: IntArray): Boolean {
+        val nextPressed = state.contains(android.R.attr.state_pressed)
+        if (pressed == nextPressed) return false
+        pressed = nextPressed
+        invalidateSelf()
+        return true
+    }
 
     override fun draw(canvas: Canvas) {
         val b = bounds
         val inset = strokeWidth / 2f
         rect.set(b.left + inset, b.top + inset, b.right - inset, b.bottom - inset)
         fillPaint.shader = LinearGradient(
-            0f, rect.top, 0f, rect.bottom,
-            topColor, bottomColor, Shader.TileMode.CLAMP
+            0f, rect.top, rect.width() * 0.7f, rect.bottom,
+            intArrayOf(topColor, blendColor(topColor, bottomColor, 0.42f), bottomColor),
+            floatArrayOf(0f, 0.48f, 1f), Shader.TileMode.CLAMP
         )
         strokePaint.shader = LinearGradient(
-            0f, rect.top, 0f, rect.bottom,
+            rect.left, rect.top, rect.right, rect.bottom,
             strokeTop, strokeBottom, Shader.TileMode.CLAMP
         )
         canvas.drawRoundRect(rect, cornerRadius, cornerRadius, fillPaint)
+
+        // Fine upper rim catches light like a thin sheet of glass.
+        shinePaint.shader = LinearGradient(
+            rect.left, rect.top, rect.right, rect.top + rect.height() * 0.34f,
+            intArrayOf(0x00FFFFFF, 0x55FFFFFF, 0x00FFFFFF),
+            floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP
+        )
+        canvas.save()
+        canvas.clipRect(rect.left, rect.top, rect.right, rect.top + rect.height() * 0.42f)
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, shinePaint)
+        canvas.restore()
         canvas.drawRoundRect(rect, cornerRadius, cornerRadius, strokePaint)
+
+        if (pressed) {
+            shinePaint.shader = RadialGradient(
+                rect.centerX(), rect.top + rect.height() * 0.18f,
+                rect.width() * 0.85f,
+                intArrayOf(0x66FFFFFF, 0x22FFFFFF, 0x00FFFFFF),
+                floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP
+            )
+            canvas.drawRoundRect(rect, cornerRadius, cornerRadius, shinePaint)
+            shinePaint.shader = null
+        }
+    }
+
+    private fun blendColor(a: Int, b: Int, amount: Float): Int {
+        val inv = 1f - amount
+        return android.graphics.Color.argb(
+            (android.graphics.Color.alpha(a) * inv + android.graphics.Color.alpha(b) * amount).toInt(),
+            (android.graphics.Color.red(a) * inv + android.graphics.Color.red(b) * amount).toInt(),
+            (android.graphics.Color.green(a) * inv + android.graphics.Color.green(b) * amount).toInt(),
+            (android.graphics.Color.blue(a) * inv + android.graphics.Color.blue(b) * amount).toInt()
+        )
     }
 
     override fun setAlpha(alpha: Int) {
         fillPaint.alpha = alpha
         strokePaint.alpha = alpha
+        shinePaint.alpha = alpha
         invalidateSelf()
     }
 
     override fun setColorFilter(colorFilter: ColorFilter?) {
         fillPaint.colorFilter = colorFilter
         strokePaint.colorFilter = colorFilter
+        shinePaint.colorFilter = colorFilter
         invalidateSelf()
     }
 
