@@ -688,7 +688,7 @@ class GlassKeyboardService : InputMethodService() {
         val radius = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getInt("roundness", 6).coerceIn(5, 7)
         val color = when {
-            accent -> Color.rgb(0, 122, 255)
+            accent -> accentColor()
             isDark() && special -> Color.rgb(72, 72, 74)
             isDark() -> Color.rgb(58, 58, 60)
             special -> Color.rgb(173, 179, 188)
@@ -716,6 +716,16 @@ class GlassKeyboardService : InputMethodService() {
         val g = (Color.green(color) * (1f - amount) + Color.green(overlay) * amount).roundToInt()
         val b = (Color.blue(color) * (1f - amount) + Color.blue(overlay) * amount).roundToInt()
         return Color.argb(a, r, g, b)
+    }
+
+    private fun accentColor(): Int = when (
+        getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("accent_theme", "blue")
+    ) {
+        "purple" -> Color.rgb(166, 106, 255)
+        "green" -> Color.rgb(48, 205, 145)
+        "pink" -> Color.rgb(255, 82, 145)
+        "orange" -> Color.rgb(255, 151, 66)
+        else -> Color.rgb(0, 122, 255)
     }
 
     private fun foreground() = if (isDark()) Color.WHITE else Color.rgb(31, 36, 45)
