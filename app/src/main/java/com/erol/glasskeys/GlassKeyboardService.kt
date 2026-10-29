@@ -526,26 +526,35 @@ class GlassKeyboardService : InputMethodService() {
         val predicted = predictor.suggestions(prefix, previousWord, 12)
         if (predicted.isEmpty()) return null
 
-        val nextLetterCounts = mutableMapOf<String, Int>()
-        predicted.forEach { word ->
+        // Rank-weighted next-letter probabilities: the first prediction carries
+        // more weight than a low-ranked candidate, instead of treating all words equally.
+        val nextLetterScores = mutableMapOf<String, Int>()
+        predicted.forEachIndexed { rank, word ->
             val normalizedWord = word.lowercase(Locale("tr", "TR"))
             if (normalizedWord.startsWith(prefix) && normalizedWord.length > prefix.length) {
                 val next = normalizedWord.substring(prefix.length, prefix.length + 1)
-                nextLetterCounts[next] = (nextLetterCounts[next] ?: 0) + 1
+                nextLetterScores[next] = (nextLetterScores[next] ?: 0) + (predicted.size - rank)
             }
         }
 
         val left = row.getOrNull(index - 1)
         val right = row.getOrNull(index + 1)
         val edgeRatio = touchX / viewWidth.toFloat()
-        val neighbor = when {
-            edgeRatio < 0.27f && left != null -> left
-            edgeRatio > 0.73f && right != null -> right
+        val edgeDistance = when {
+            edgeRatio < 0.30f && left != null -> (0.30f - edgeRatio) / 0.30f
+            edgeRatio > 0.70f && right != null -> (edgeRatio - 0.70f) / 0.30f
             else -> return null
-        }
-        val neighborScore = nextLetterCounts[neighbor] ?: 0
-        val currentScore = nextLetterCounts[current] ?: 0
-        return if (neighborScore >= 2 && neighborScore > currentScore) neighbor else null
+        }.coerceIn(0f, 1f)
+
+        val neighbor = if (edgeRatio < 0.30f) left else right
+        neighbor ?: return null
+        val neighborScore = nextLetterScores[neighbor] ?: 0
+        val currentScore = nextLetterScores[current] ?: 0
+
+        // Require a real prediction advantage, and a stronger advantage for taps
+        // closer to the center so ordinary intentional taps are not overridden.
+        val requiredAdvantage = if (edgeDistance > 0.65f) 1.0f else 1.5f
+        return if (neighborScore >= 4 && neighborScore > currentScore * requiredAdvantage) neighbor else null
     }
 
     private fun commit(text: String) {
