@@ -49,6 +49,10 @@ class GlassKeyboardService : InputMethodService() {
     private var backspaceRepeater: Runnable? = null
     private var keyPreviewPopup: PopupWindow? = null
     private val predictor by lazy { TurkishPredictionEngine(this) }
+    // Adaptive hitbox correction: when a tap lands near an edge, bias it toward
+    // a likely adjacent letter based on the current word prefix and local predictions.
+    private var pendingCorrectionSource: String? = null
+    private var pendingCorrectedLetter: String? = null
 
     private val letterRows = listOf(
         listOf("q","w","e","r","t","y","u","ı","o","p","ğ","ü"),
@@ -365,10 +369,24 @@ class GlassKeyboardService : InputMethodService() {
         setOnTouchListener { v, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    pendingCorrectionSource = null
+                    pendingCorrectedLetter = null
                     v.animate().scaleX(0.94f).scaleY(0.92f).setDuration(65).start()
                     if (label == "⌫") startBackspaceRepeat() else showKeyPreview(v, label)
                 }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                MotionEvent.ACTION_UP -> {
+                    if (label.length == 1 && label[0].isLetter()) {
+                        pendingCorrectionSource = label.lowercase(Locale("tr", "TR"))
+                        pendingCorrectedLetter = correctedNeighborForTap(label, event.x, v.width)
+                    }
+                    v.animate().scaleX(1f).scaleY(1f).setDuration(100).start()
+                    if (label == "⌫") stopBackspaceRepeat()
+                    keyPreviewPopup?.dismiss()
+                    keyPreviewPopup = null
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    pendingCorrectionSource = null
+                    pendingCorrectedLetter = null
                     v.animate().scaleX(1f).scaleY(1f).setDuration(100).start()
                     if (label == "⌫") stopBackspaceRepeat()
                     keyPreviewPopup?.dismiss()
@@ -478,8 +496,57 @@ class GlassKeyboardService : InputMethodService() {
         refreshSuggestions()
     }
 
-    private fun keyForCommit(key: String): String =
-        if (shift && !symbols) key.uppercase(Locale("tr", "TR")) else key
+    private fun keyForCommit(key: String): String {
+        val normalized = key.lowercase(Locale("tr", "TR"))
+        val correction = pendingCorrectedLetter
+        val source = pendingCorrectionSource
+        pendingCorrectedLetter = null
+        pendingCorrectionSource = null
+        if (key.firstOrNull()?.isLetter() == true && source == normalized && correction != null) {
+            return if (shift && !symbols) correction.uppercase(Locale("tr", "TR")) else correction
+        }
+        return if (shift && !symbols) key.uppercase(Locale("tr", "TR")) else key
+    }
+
+    /**
+     * iOS-style adaptive hitbox bias. Only edge taps can move to an adjacent key,
+     * and only when the local Turkish predictor strongly expects that letter next.
+     */
+    private fun correctedNeighborForTap(label: String, touchX: Float, viewWidth: Int): String? {
+        if (symbols || numericInput || passwordInput || !learningAllowed || viewWidth <= 0) return null
+        val current = label.lowercase(Locale("tr", "TR"))
+        val row = letterRows.firstOrNull { current in it } ?: return null
+        val index = row.indexOf(current)
+        if (index < 0) return null
+
+        val before = currentInputConnection?.getTextBeforeCursor(120, 0)?.toString().orEmpty()
+        val prefix = Regex("[\\\\p{L}\\\\p{M}]+$").find(before)?.value.orEmpty()
+        val beforePrefix = if (prefix.isNotEmpty()) before.dropLast(prefix.length) else before
+        val previousWord = Regex("[\\\\p{L}\\\\p{M}]+$").find(beforePrefix.trimEnd())?.value.orEmpty()
+        val predicted = predictor.suggestions(prefix, previousWord, 12)
+        if (predicted.isEmpty()) return null
+
+        val nextLetterCounts = mutableMapOf<String, Int>()
+        predicted.forEach { word ->
+            val normalizedWord = word.lowercase(Locale("tr", "TR"))
+            if (normalizedWord.startsWith(prefix) && normalizedWord.length > prefix.length) {
+                val next = normalizedWord.substring(prefix.length, prefix.length + 1)
+                nextLetterCounts[next] = (nextLetterCounts[next] ?: 0) + 1
+            }
+        }
+
+        val left = row.getOrNull(index - 1)
+        val right = row.getOrNull(index + 1)
+        val edgeRatio = touchX / viewWidth.toFloat()
+        val neighbor = when {
+            edgeRatio < 0.27f && left != null -> left
+            edgeRatio > 0.73f && right != null -> right
+            else -> return null
+        }
+        val neighborScore = nextLetterCounts[neighbor] ?: 0
+        val currentScore = nextLetterCounts[current] ?: 0
+        return if (neighborScore >= 2 && neighborScore > currentScore) neighbor else null
+    }
 
     private fun commit(text: String) {
         val ic = currentInputConnection
