@@ -59,8 +59,8 @@ class TurkishPrefixMatcherTest {
     }
 
     @Test
-    fun matchingIsCaseSensitiveAndDoesNotSilentlyNormalizeText() {
-        assertFalse(TurkishPrefixMatcher.hasSingleEditPrefixMatch("istanbul", "İst"))
+    fun scoresTurkishCaseAndDiacriticDifferencesAsEdits() {
+        assertEquals(1, TurkishPrefixMatcher.distanceScore("istanbul", "İst"))
         assertFalse(TurkishPrefixMatcher.hasSingleEditPrefixMatch("cagri", "çağ"))
     }
 
