@@ -662,7 +662,7 @@ class GlassKeyboardService : InputMethodService() {
     private fun panelBackground(): Drawable {
         val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         // Default to 60% opacity for the requested frosted-glass appearance.
-        val opacity = prefs.getInt("opacity", 60).coerceIn(35, 100)
+        val opacity = prefs.getInt("opacity", 72).coerceIn(35, 100)
         val alpha = (opacity * 2.55f).roundToInt().coerceIn(90, 255)
         val base = if (isDark()) Color.rgb(24, 25, 30) else Color.rgb(226, 232, 240)
         val fill = Color.argb(alpha, Color.red(base), Color.green(base), Color.blue(base))
@@ -811,7 +811,7 @@ private class GlassSurfaceDrawable(
         // Fine upper rim catches light like a thin sheet of glass.
         shinePaint.shader = LinearGradient(
             rect.left, rect.top, rect.right, rect.top + rect.height() * 0.34f,
-            intArrayOf(0x00FFFFFF, 0x55FFFFFF, 0x00FFFFFF),
+            intArrayOf(0x00FFFFFF, 0x88FFFFFF.toInt(), 0x00FFFFFF),
             floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP
         )
         canvas.save()
@@ -824,7 +824,7 @@ private class GlassSurfaceDrawable(
             shinePaint.shader = RadialGradient(
                 rect.centerX(), rect.top + rect.height() * 0.18f,
                 rect.width() * 0.85f,
-                intArrayOf(0x66FFFFFF, 0x22FFFFFF, 0x00FFFFFF),
+                intArrayOf(0x88FFFFFF.toInt(), 0x38FFFFFF, 0x00FFFFFF),
                 floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP
             )
             canvas.drawRoundRect(rect, cornerRadius, cornerRadius, shinePaint)
