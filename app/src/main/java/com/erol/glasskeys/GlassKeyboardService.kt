@@ -145,27 +145,21 @@ class GlassKeyboardService : InputMethodService() {
     private fun configureGlassWindow() {
         val w = window?.window ?: return
         w.setBackgroundDrawableResource(android.R.color.transparent)
-        w.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+
+        // Do not enable FLAG_BLUR_BEHIND here. Android applies this blur to the
+        // window *behind the IME*, which can blur the entire app/screen rather
+        // than just the keyboard surface. The keyboard draws its own glass-like
+        // translucent gradients and highlights in GlassSurfaceDrawable.
+        w.clearFlags(
+            WindowManager.LayoutParams.FLAG_DIM_BEHIND or
+                WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+        )
+        val params = w.attributes
+        params.dimAmount = 0f
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            try {
-                val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-                val blurAvailable = wm.isCrossWindowBlurEnabled
-                w.attributes = w.attributes.apply {
-                    dimAmount = 0f
-                    if (blurAvailable) {
-                        flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                        blurBehindRadius = dp(22)
-                    } else {
-                        flags = flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
-                        blurBehindRadius = 0
-                    }
-                }
-            } catch (_: Exception) {
-                w.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-            }
-        } else {
-            w.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+            params.blurBehindRadius = 0
         }
+        w.attributes = params
     }
 
     private fun configureForInput(info: EditorInfo?) {
